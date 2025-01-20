@@ -1,0 +1,35 @@
+[project]
+name = "oslo.policy.opa"
+version = "0.1.0"
+description = "Perform a OpenPolicyAgent check"
+readme = { file = "README.rst", content-type="text/x-rst" }
+authors = [
+    { name = "Artem Goncharov", email = "artem.goncharov@gmail.com" }
+]
+requires-python = ">=3.9"
+dependencies = [
+  "oslo.log>=6",
+  "oslo.policy>=4",
+  "requests>2.30"
+]
+
+[build-system]
+requires = ["pbr>=6.0.0", "setuptools>=64.0.0"]
+build-backend = "pbr.build"
+
+[tool.ruff]
+line-length = 79
+target-version = "py39"
+
+[tool.ruff.lint]
+# enable the following rule classes:
+#
+# C4: https://docs.astral.sh/ruff/rules/#flake8-comprehensions-c4
+# UP: https://docs.astral.sh/ruff/rules/#pyupgrade-up
+select = ["C4", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true
+skip-magic-trailing-comma = true
+
