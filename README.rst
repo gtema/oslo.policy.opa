@@ -21,9 +21,9 @@ of the identity service is allowed if one of the following conditions is true:
 - `rule:admin_required` evaluates to True (user has admin role)
 
 - `role:reader and system_scope:all)` - user has reader role and authorized
-   with the system scope and `all` target
+  with the system scope and `all` target
 
-- `rule:owned`- user is owner of the resource
+- `rule:owned` - user is owner of the resource
 
 What is OpenPolicyAgent?
 ------------------------
