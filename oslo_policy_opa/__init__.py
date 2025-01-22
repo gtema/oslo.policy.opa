@@ -60,7 +60,7 @@ class OPACheck(_checks.Check):
                 if r.status_code == 200:
                     result = r.json().get("result")
                     LOG.debug(
-                        f"Policy evaluation in OPA returned {result.get('allow')} at {(end-start)*1000}ms"
+                        f"Policy evaluation in OPA returned {result.get('allow')} at {(end - start) * 1000}ms"
                     )
                     if result:
                         return result.get("allow", False)

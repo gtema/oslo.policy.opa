@@ -1,10 +1,12 @@
 [project]
 name = "oslo.policy.opa"
-version = "0.1.0"
 description = "Perform a OpenPolicyAgent check"
 readme = { file = "README.rst", content-type="text/x-rst" }
 authors = [
     { name = "Artem Goncharov", email = "artem.goncharov@gmail.com" }
+]
+dynamic = [
+  "version",
 ]
 requires-python = ">=3.9"
 dependencies = [
@@ -13,9 +15,20 @@ dependencies = [
   "requests>2.30"
 ]
 
+[project.scripts]
+oslopolicy-opa-policy-generator = "oslo_policy_opa.generator:generate_policy"
+
+[project.entry-points."oslo.policy.rule_checks"]
+opa = "oslo_policy_opa:OPACheck"
+
 [build-system]
 requires = ["pbr>=6.0.0", "setuptools>=64.0.0"]
 build-backend = "pbr.build"
+
+[tool.setuptools]
+packages = [
+  "oslo_policy_opa"
+]
 
 [tool.ruff]
 line-length = 79
