@@ -231,3 +231,33 @@ provide OPA instance only the relevant data (i.e. OPA instance for Keystone
 only containing identity relevant relations while the OPA instance for Nova
 only dealing with compute relevant relations) so that the data is structured in
 smaller self-containing chunks without exploding central storage.
+
+Policy testing
+--------------
+
+Policy `list_roles` provided above can be tested simulating different inputs:
+
+.. code-block:: rego
+   :caption: identity/list_roles_test.rego
+
+   package identity.list_roles_test
+
+   import data.identity.list_roles
+
+   test_admin_required if {
+     list_roles.allow with input as {"credentials": {"roles": ["admin"]}}
+   }
+
+   test_reader_and_system_scope_all if {
+     list_roles.allow with input as {"credentials": {"system_scope": "all", "roles": ["reader"]}}
+   }
+
+   test_manager_and_not_domain_id_None if {
+     list_roles.allow with input as {"credentials": {"roles": ["manager"], "domain_id": "foo"}}
+   }
+
+   test_direct_assignment if {
+     list_roles.allow 
+       with input as {"credentials": {"user_id": "foo"}} 
+       with data.assignments as {"list_roles": {"foo": {}}}
+   }
