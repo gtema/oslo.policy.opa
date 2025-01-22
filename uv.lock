@@ -268,7 +268,7 @@ wheels = [
 
 [[package]]
 name = "oslo-policy-opa"
-version = "0.0.1.dev4"
+version = "0.0.1.dev7"
 source = { editable = "." }
 dependencies = [
     { name = "oslo-log" },

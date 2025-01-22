@@ -141,24 +141,24 @@ Imagine the following policy for listing Keystone roles:
 .. code-block:: rego
    :caption: identity/list_roles.rego
 
-  package identity.list_roles
-  
-  import data.lib
-  
-  # List roles.
-  # GET  /v3/roles
-  # HEAD  /v3/roles
-  # Intended scope(s): system, domain, project
-  #"identity:list_roles": "(rule:admin_required or (role:reader and system_scope:all)) or (role:manager and not domain_id:None)"
-  
-  
-  allow if {
-    lib.admin_required_or_reader_and_system_scope_all
-  }
-  
-  allow if {
-    lib.manager_and_not_domain_id_None
-  }
+   package identity.list_roles
+
+   import data.lib
+
+   # List roles.
+   # GET  /v3/roles
+   # HEAD  /v3/roles
+   # Intended scope(s): system, domain, project
+   #"identity:list_roles": "(rule:admin_required or (role:reader and system_scope:all)) or (role:manager and not domain_id:None)"
+
+
+   allow if {
+     lib.admin_required_or_reader_and_system_scope_all
+   }
+
+   allow if {
+     lib.manager_and_not_domain_id_None
+   }
 
 If we would want to grant a certain user (or maybe group of users) listing all
 domain roles without being an admin or manager we could first rewrite the
@@ -167,13 +167,13 @@ policy:
  .. code-block:: rego
    :caption: identity/list_roles.rego
 
-  package identity.list_roles
-  
-  ...
+   package identity.list_roles
 
-  allow if {
-      data.assignments["list_roles"][input.credentials.user_id]
-  }
+   ...
+
+   allow if {
+       data.assignments["list_roles"][input.credentials.user_id]
+   }
 
 This new policy checks that there is an entry present in
 `assignments.list_roles[USER_ID]`. Unless the data is present in the OPA
@@ -197,29 +197,29 @@ decision logs (those can be pushed to the external service).
 .. code-block:: json
    :caption: OPA decision_log
 
-  {
-    "decision_id":"adeedec1-d260-476d-a98d-91b94bc61c00",
-    "input":{"credentials":{"user_id":"ac1728767bb34d4393d514b8f5835c8f"}},
-    "labels":{"id":"9d3990bd-cac2-464e-ab1a-fb6e129cd6fa","version":"1.0.0"},
-    "level":"info",
-    "metrics":{
-      "counter_server_query_cache_hit":0,
-      "timer_rego_external_resolve_ns":583,
-      "timer_rego_input_parse_ns":30833,
-      "timer_rego_query_compile_ns":106541,
-      "timer_rego_query_eval_ns":147416,
-      "timer_rego_query_parse_ns":75666,
-      "timer_server_handler_ns":1428583
-    },
-    "msg":"Decision Log",
-    "path":"identity/list_roles",
-    "req_id":4,
-    "requested_by":"127.0.0.1:58893",
-    "result":{"allow":true},
-    "time":"2025-01-22T14:58:23+01:00",
-    "timestamp":"2025-01-22T13:58:23.955441Z",
-    "type":"openpolicyagent.org/decision_logs"
-  }
+   {
+     "decision_id":"adeedec1-d260-476d-a98d-91b94bc61c00",
+     "input":{"credentials":{"user_id":"ac1728767bb34d4393d514b8f5835c8f"}},
+     "labels":{"id":"9d3990bd-cac2-464e-ab1a-fb6e129cd6fa","version":"1.0.0"},
+     "level":"info",
+     "metrics":{
+       "counter_server_query_cache_hit":0,
+       "timer_rego_external_resolve_ns":583,
+       "timer_rego_input_parse_ns":30833,
+       "timer_rego_query_compile_ns":106541,
+       "timer_rego_query_eval_ns":147416,
+       "timer_rego_query_parse_ns":75666,
+       "timer_server_handler_ns":1428583
+     },
+     "msg":"Decision Log",
+     "path":"identity/list_roles",
+     "req_id":4,
+     "requested_by":"127.0.0.1:58893",
+     "result":{"allow":true},
+     "time":"2025-01-22T14:58:23+01:00",
+     "timestamp":"2025-01-22T13:58:23.955441Z",
+     "type":"openpolicyagent.org/decision_logs"
+   }
 
 `OPA documentation
 <https://www.openpolicyagent.org/docs/latest/policy-reference/#graph>`_

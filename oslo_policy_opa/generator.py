@@ -66,7 +66,7 @@ def _get_enforcer(namespace):
         invoke_on_load=True,
     )
     if namespace not in mgr:
-        raise KeyError('Namespace "%s" not found.' % namespace)
+        raise KeyError(f"Namespace {namespace} not found.")
     enforcer = mgr[namespace].obj
 
     return enforcer
@@ -76,9 +76,9 @@ def get_policies_dict(namespaces):
     """Find the options available via the given namespaces.
 
     :param namespaces: a list of namespaces registered under
-                       'oslo.policy.policies'
+        'oslo.policy.policies'
     :returns: a dict of {namespace1: [rule_default_1, rule_default_2],
-                         namespace2: [rule_default_3]...}
+        namespace2: [rule_default_3]...}
     """
     mgr = stevedore.named.NamedExtensionManager(
         "oslo.policy.policies",
@@ -447,7 +447,7 @@ class NotCheck(BaseOpaCheck):
 
 
 def _convert_oslo_policy_check_to_opa_check(
-    opc: typing.Type[oslo_policy._checks.BaseCheck],
+    opc: type[oslo_policy._checks.BaseCheck],
 ) -> BaseOpaCheck:
     """Convert oslo_policy._checks.BaseCheck into the internal interpretation
     of the OpenPolicyAgent conversion
@@ -550,14 +550,14 @@ def _format_help_text(description):
                 warnings.warn(
                     "Invalid policy description: literal blocks must be "
                     "preceded by a new line. This will raise an exception in "
-                    "a future version of oslo.policy:\n%s" % description,
+                    f"a future version of oslo.policy:\n{description}",
                     FutureWarning,
                 )
                 formatted_lines.extend(_wrap_paragraph(paragraph))
                 formatted_lines.append("#")
                 paragraph = []
 
-            formatted_lines.append("# %s" % line.rstrip())
+            formatted_lines.append(f"# {line.rstrip()}")
 
     if paragraph:
         # dump anything we might still have in the buffer
@@ -567,30 +567,21 @@ def _format_help_text(description):
 
 
 def _get_rule_help(default: oslo_policy.policy._BaseRule) -> str:
-    text: str = '"%(name)s": "%(check_str)s"\n' % {
-        "name": default.name,
-        "check_str": default.check_str,
-    }
+    text: str = f'"{default.name}": "{default.check_str}"\n'
     op = ""
     if hasattr(default, "operations"):
         for operation in default.operations:
             if operation["method"] and operation["path"]:
-                op += "# %(method)s  %(path)s\n" % {
-                    "method": operation["method"],
-                    "path": operation["path"],
-                }
+                op += "# {method}  {path}\n".format(
+                    method=operation["method"], path=operation["path"]
+                )
     intended_scope = ""
     if getattr(default, "scope_types", None) is not None:
         intended_scope = (
             "# Intended scope(s): " + ", ".join(default.scope_types) + "\n"
         )
     comment = "#"  # if comment_rule else ''
-    text = "%(op)s%(scope)s%(comment)s%(text)s\n" % {
-        "op": op,
-        "scope": intended_scope,
-        "comment": comment,
-        "text": text,
-    }
+    text = f"{op}{intended_scope}{comment}{text}\n"
     if default.description:
         text = _format_help_text(default.description) + "\n" + text
 
