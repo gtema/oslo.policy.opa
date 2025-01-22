@@ -261,3 +261,23 @@ Policy `list_roles` provided above can be tested simulating different inputs:
        with input as {"credentials": {"user_id": "foo"}} 
        with data.assignments as {"list_roles": {"foo": {}}}
    }
+
+Using
+-----
+
+- Install oslo.policy.opa in the project environment
+
+- Modify oslo_policy rules to only call `opa:<RULE_NAME>` for every rule
+
+- Deploy OPA server with generated policies (i.e. `opa run -s keystone`)
+
+- Configure Keystone to know how to communicate with OPA:
+
+.. code-block::
+
+   ..
+   [oslo_policy]
+
+   opa_url = http://localhost:8181
+
+- Start Keystone and enjoy
