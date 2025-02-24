@@ -52,6 +52,10 @@ ENFORCER_OPTS = [
 ]
 
 
+def normalize_name(name: str) -> str:
+    return name.translate(str.maketrans({":": "_", "-": "_", "*": "any"}))
+
+
 def _get_enforcer(namespace):
     """Find a policy.Enforcer via an entry point with the given namespace.
 
@@ -145,6 +149,30 @@ class TrueCheck(BaseOpaCheck):
         return "true"
 
 
+class FalseCheck(BaseOpaCheck):
+    def __init__(self, oslo_policy_check: oslo_policy._checks.FalseCheck):
+        super().__init__(oslo_policy_check)
+
+    def get_header(self):
+        return ""
+
+    def get_footer(self):
+        return ""
+
+    def get_opa_policy_tests(
+        self, policy_tests: dict[str, list[str]]
+    ) -> list[str]:
+        return []
+
+    def get_opa_policy(
+        self, global_results: dict[str, list[str]]
+    ) -> list[str]:
+        return []
+
+    def get_opa_incremental_rule_name(self) -> str:
+        return "false"
+
+
 class AndCheck(BaseOpaCheck):
     rules: list[BaseOpaCheck]
 
@@ -165,7 +193,7 @@ class AndCheck(BaseOpaCheck):
                 results.append(opa_rule_repr[0])
             else:
                 incremental_rule_name = rule.get_opa_incremental_rule_name()
-                results.append(f"lib.{incremental_rule_name}")
+                results.append(incremental_rule_name)
                 if incremental_rule_name not in global_results:
                     global_results.setdefault(
                         incremental_rule_name, []
@@ -226,7 +254,7 @@ class OrCheck(BaseOpaCheck):
                 results.append(opa_rule_repr[0])
             else:
                 incremental_rule_name = rule.get_opa_incremental_rule_name()
-                results.append(f"lib.{incremental_rule_name}")
+                results.append(incremental_rule_name)
 
                 if incremental_rule_name not in global_results:
                     global_res = global_results.setdefault(
@@ -296,7 +324,7 @@ class RuleCheck(BaseOpaCheck):
     def get_opa_policy(
         self, global_results: dict[str, list[str]]
     ) -> list[str]:
-        return [f"lib.{self.check.match}"]
+        return [f"lib.{normalize_name(self.check.match)}"]
 
     def get_opa_incremental_rule_name(self) -> str:
         return self.check.match
@@ -396,7 +424,135 @@ class GenericCheck(BaseOpaCheck):
                 )
         except ValueError:
             rule_name = f"{self.check.kind}_{right}"
-        return rule_name
+        return normalize_name(rule_name)
+
+    def get_opa_policy_tests(
+        self, policy_tests: dict[str, list[str]]
+    ) -> list[str]:
+        return []
+
+
+class NeutronOwnerCheck(BaseOpaCheck):
+    """Neutron Owner check
+
+    Matches look like:
+
+        - tenant:%(tenant_id)s
+
+    """
+
+    def __init__(self, oslo_policy_check: oslo_policy._checks.GenericCheck):
+        super().__init__(oslo_policy_check)
+
+    def get_opa_policy(
+        self, global_results: dict[str, list[str]]
+    ) -> list[str]:
+        return ["# not yet implemented owner check"]
+
+    def get_opa_incremental_rule_name(self) -> str:
+        rule_name: str
+        right = self.check.match
+        if right.startswith("%(") and right.endswith(")s"):
+            right = "_".join(right[2:-2].split(".")[1:])
+        try:
+            left = ast.literal_eval(self.check.kind)
+            if isinstance(left, bool):
+                if left:
+                    left = ""
+                else:
+                    left = "not"
+                rule_name = f"{left}_{right}"
+            elif isinstance(left, int):
+                rule_name = f"{left}_is_{right}"
+            elif isinstance(left, str):
+                rule_name = f"{left}_is_{right}"
+            elif left is None:
+                rule_name = f"{right}_empty"
+            else:
+                raise NotImplementedError(
+                    f"translation of {self.check.kind} is not supported yet"
+                )
+        except ValueError:
+            rule_name = f"{self.check.kind}_{right}"
+        return normalize_name(rule_name)
+
+    def get_opa_policy_tests(
+        self, policy_tests: dict[str, list[str]]
+    ) -> list[str]:
+        return []
+
+
+class NeutronFieldCheck(BaseOpaCheck):
+    """Neutron Field check
+
+    Matches look like:
+
+        - field:networs:shared:True
+        - field:port:device_owner=~^network:
+
+    """
+
+    def __init__(self, oslo_policy_check: oslo_policy._checks.GenericCheck):
+        super().__init__(oslo_policy_check)
+
+    def get_opa_policy(
+        self, global_results: dict[str, list[str]]
+    ) -> list[str]:
+        check: str = ""
+        resource, field_value = self.check._orig_match.split(":", 1)
+        field, value = field_value.split("=", 1)
+        if ":" in field:
+            left = f'input["{field}"]'
+        else:
+            left = f"input.{field}"
+        if value.startswith("~"):
+            check = f'regex.match("{value}", {left})'
+        else:
+            # This is a string so we need to figure out what is it: a string,
+            # an int, bool, None, ...
+            try:
+                right = ast.literal_eval(value)
+                if isinstance(right, bool):
+                    if right:
+                        right = ""
+                    else:
+                        right = "not"
+                    check = f"{left}{right}"
+                elif isinstance(right, str):
+                    right = f'"{right}"'
+                    check = f"{left} == {right}"
+            except (ValueError, SyntaxError):
+                check = f'{left} == "{value}"'
+        if resource == "networks" and field == "shared":
+            check = check + "\n\t# or fetch and check"
+        return [check]
+
+    def get_opa_incremental_rule_name(self) -> str:
+        rule_name: str
+        right = self.check.match
+        if right.startswith("%(") and right.endswith(")s"):
+            right = "_".join(right[2:-2].split(".")[1:])
+        try:
+            left = ast.literal_eval(self.check.kind)
+            if isinstance(left, bool):
+                if left:
+                    left = ""
+                else:
+                    left = "not"
+                rule_name = f"{left}_{right}"
+            elif isinstance(left, int):
+                rule_name = f"{left}_is_{right}"
+            elif isinstance(left, str):
+                rule_name = f"{left}_is_{right}"
+            elif left is None:
+                rule_name = f"{right}_empty"
+            else:
+                raise NotImplementedError(
+                    f"translation of {self.check.kind} is not supported yet"
+                )
+        except ValueError:
+            rule_name = f"{self.check.kind}_{right}"
+        return normalize_name(rule_name)
 
     def get_opa_policy_tests(
         self, policy_tests: dict[str, list[str]]
@@ -470,6 +626,13 @@ def _convert_oslo_policy_check_to_opa_check(
         return NotCheck(opc)
     elif isinstance(opc, oslo_policy._checks.TrueCheck):
         return TrueCheck(opc)
+    elif isinstance(opc, oslo_policy._checks.FalseCheck):
+        return FalseCheck(opc)
+    elif opc.__class__.__module__ == "neutron.policy":
+        if opc.__class__.__name__ == "OwnerCheck":
+            return NeutronOwnerCheck(opc)
+        elif opc.__class__.__name__ == "FieldCheck":
+            return NeutronFieldCheck(opc)
     raise NotImplementedError(f"Check {type(opc)} is not supported")
 
 
@@ -488,25 +651,37 @@ def _translate_default_rule(
     :returns: A string containing a yaml representation of the RuleDefault
     """  # noqa: E501
 
+    # LOG.info(f"Converting {default.check}")
     opa_rule = _convert_oslo_policy_check_to_opa_check(default.check)
-    opa_part_rules = opa_rule.get_opa_policy(results)
+    lib_part_rules = {}
+    opa_part_rules = opa_rule.get_opa_policy(lib_part_rules)
     opa_rule_tests = opa_rule.get_opa_policy_tests(policy_tests)
     rule_description = _get_rule_help(default)
-    results.setdefault(default.name, [rule_description])
-    if ":" in default.name:
+    # LOG.info(f"Converted {default} {getattr(default, 'operations', None)} into {opa_part_rules}")
+    if hasattr(default, "operations") and default.operations:
         # This is the final role
+        results.setdefault(default.name, [rule_description])
         results[default.name].extend(
             [
                 f"allow {opa_rule.get_header()}  {rule}\n{opa_rule.get_footer()}\n"
                 for rule in opa_part_rules
             ]
         )
-        policy_tests[default.name] = opa_rule_tests
-        return results[default.name]
-    else:
         results[default.name].extend(
             [
-                f"{default.name} {opa_rule.get_header()}  {rule}\n{opa_rule.get_footer()}\n"
+                f"{subrule}\n"
+                for rule in lib_part_rules.values()
+                for subrule in rule
+            ]
+        )
+        policy_tests[default.name] = opa_rule_tests
+    else:
+        # a library "rule"
+        LOG.info(f"A library rule {default}")
+        results.setdefault("lib", [])
+        results["lib"].extend(
+            [
+                f"{normalize_name(default.name)} {opa_rule.get_header()}  {rule}\n{opa_rule.get_footer()}\n"
                 for rule in opa_part_rules
             ]
         )
@@ -625,9 +800,11 @@ def _generate_policy(namespace, output_dir=None):
         lib_output = open(lib_fname, "w") if output_dir else sys.stdout
         lib_output.write(f"package lib\n\n")
     for rule, opa_policy in opa_policies.items():
-        if ":" in rule:
+        LOG.info(f"Writing rule {rule}")
+        if rule != "lib":
             # final policy rule
             if output_dir:
+                LOG.info(f"Prepare to write {rule}")
                 fname_parts = rule.split(":")
                 fname_parts[-1] = f"{fname_parts[-1]}.rego"
                 fname = pathlib.Path(output_dir, *fname_parts)
@@ -636,7 +813,7 @@ def _generate_policy(namespace, output_dir=None):
             else:
                 output = sys.stdout
 
-            output.write(f"package {rule.replace(':', '.')}\n\n")
+            output.write(f"package {normalize_name(rule)}\n\n")
             output.write(f"import data.lib\n\n")
             for opa_policy_rule in opa_policy:
                 output.write(opa_policy_rule)
@@ -652,9 +829,9 @@ def _generate_policy(namespace, output_dir=None):
                 fname.parent.mkdir(parents=True, exist_ok=True)
                 output = open(fname, "w")
 
-                output.write(f"package {rule.replace(':', '.')}_test\n\n")
+                output.write(f"package {normalize_name(rule)}_test\n\n")
                 output.write(
-                    f"import data.{namespace}.{rule.replace(':', '.')}\n\n"
+                    f"import data.{namespace}.{normalize_name(rule)}\n\n"
                 )
                 num: int = 1
                 for opa_policy_rule_test in tests:
@@ -678,7 +855,7 @@ def on_load_failure_callback(*args, **kwargs):
 
 
 def generate_policy(args=None):
-    logging.basicConfig(level=logging.WARN)
+    logging.basicConfig(level=logging.INFO)
     conf = cfg.CONF
     conf.register_cli_opts(GENERATOR_OPTS + ENFORCER_OPTS)
     conf.register_opts(GENERATOR_OPTS + ENFORCER_OPTS)

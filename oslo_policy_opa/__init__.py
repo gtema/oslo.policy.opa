@@ -26,6 +26,10 @@ from oslo_policy_opa import opts
 LOG = logging.getLogger(__name__)
 
 
+def normalize_name(name: str) -> str:
+    return name.translate(str.maketrans({":": "_", "-": "_", "*": "any"}))
+
+
 class OPACheck(_checks.Check):
     """Check ``opa:`` rules by calling to a remote OpenPolicyAgent server.
 
@@ -47,7 +51,7 @@ class OPACheck(_checks.Check):
                 enforcer.conf.oslo_policy.opa_url,
                 "v1",
                 "data",
-                current_rule.replace(":", "/"),
+                normalize_name(current_rule),
             ]
         )
         json = self._construct_payload(creds, current_rule, enforcer, target)
