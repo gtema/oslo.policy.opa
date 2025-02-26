@@ -1,0 +1,40 @@
+name: Convert
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  generate:
+    strategy:
+      matrix:
+        service: ["barbican", "cinder", "designate", "glance", "keystone", "neutron", "nova", "octavia"]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install the project
+        run: uv sync --all-extras
+
+      - name: Generate OPA policy per service
+        run: uv run oslopolicy-opa-policy-generator --namespace ${{ matrix.service }} --output-dir artifacts/${{ matrix.service }}
+
+      - name: Generate oslo.policy file per service
+        run: uv run oslopolicy-opa-sample-generator --namespace ${{ matrix.service }} --output-file artifacts/${{ matrix.service }}/policy.yaml
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: opa-policies-${{ matrix.service }}
+          path: artifacts/
