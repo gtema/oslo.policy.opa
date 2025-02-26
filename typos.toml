@@ -31,7 +31,7 @@ extend-ignore-re = []
 [type.py]
 extend-glob = []
 extend-ignore-identifiers-re = []
-extend-ignore-words-re = []
+extend-ignore-words-re = ["datas"]
 extend-ignore-re = []
 
 [type.py.extend-identifiers]

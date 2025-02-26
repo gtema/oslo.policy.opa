@@ -16,10 +16,14 @@ dependencies = [
 ]
 
 [project.scripts]
-oslopolicy-opa-policy-generator = "oslo_policy_opa.generator:generate_policy"
+oslopolicy-opa-policy-generator = "oslo_policy_opa.generator:generate_opa_policy"
+oslopolicy-opa-sample-generator = "oslo_policy_opa.generator:generate_sample"
 
 [project.entry-points."oslo.policy.rule_checks"]
-opa = "oslo_policy_opa:OPACheck"
+opa = "oslo_policy_opa.opa:OPACheck"
+
+[project.optional-dependencies]
+test = ["pytest"]
 
 [build-system]
 requires = ["pbr>=6.0.0", "setuptools>=64.0.0"]
