@@ -360,7 +360,7 @@ class AndCheck(BaseOpaCheck):
                     test_data = deep_merge_dicts(test_data, test_parts)
 
         if len(tests) > 0:
-            final_test_data: list[dict] = []
+            final_test_data: list[dict] = [test_data]
             for part in tests:
                 final_test_data = list(product(final_test_data, part))
             return final_test_data
@@ -539,7 +539,12 @@ class RuleCheck(BaseOpaCheck):
     def get_opa_policy(
         self, global_results: dict[str, list[str]]
     ) -> list[str]:
-        return [f"lib.{normalize_name(self.check.match)}"]
+        rule_name = (
+            normalize_name(self.check.match)
+            if self.check.match != "default"
+            else "_default"
+        )
+        return [f"lib.{rule_name}"]
 
     def get_opa_incremental_rule_name(self) -> str:
         return self.check.match
@@ -966,13 +971,15 @@ def _translate_default_rule(
         LOG.info(
             f"A library rule {default} with {opa_part_rules} and {lib_part_rules}"
         )
-        if default.name == "default":
-            # Skip the library "default" rule
-            return
+        rule_name = (
+            normalize_name(default.name)
+            if default.name != "default"
+            else "_default"
+        )
         results.setdefault("lib", [])
         results["lib"].extend(
             [
-                f"{normalize_name(default.name)} {opa_rule.get_header()}  {rule}\n{opa_rule.get_footer()}\n"
+                f"{rule_name} {opa_rule.get_header()}  {rule}\n{opa_rule.get_footer()}\n"
                 for rule in opa_part_rules
             ]
         )
@@ -1142,7 +1149,9 @@ def _generate_opa_policy(namespace, output_dir=None):
                 output = open(fname, "w")
 
                 output.write(f"package {normalize_name(rule)}_test\n\n")
-                output.write(f"import data.{'.'.join(packagename_parts)}\n\n")
+                output.write(
+                    f"import data.{'.'.join(normalize_name(x) for x in packagename_parts)}\n\n"
+                )
                 num: int = 1
                 for opa_policy_rule_test in tests:
                     output.write(opa_policy_rule_test)
@@ -1184,8 +1193,7 @@ def _format_rule_default_yaml(
             for operation in default.operations:
                 if operation["method"] and operation["path"]:
                     op += "# {method}  {path}\n".format(
-                        method=operation["method"],
-                        path=operation["path"],
+                        method=operation["method"], path=operation["path"]
                     )
         intended_scope = ""
         if getattr(default, "scope_types", None) is not None:
@@ -1264,7 +1272,7 @@ def _generate_sample(
     List all of the policies available via the namespace specified in the
     given configuration and write them to the specified output file.
 
-    :param namespaces: a list of namespaces registered under 
+    :param namespaces: a list of namespaces registered under
         'oslo.policy.policies'. Stevedore will look here for policy options.
     :param output_file: The path of a file to output to. stdout used if None.
     :param include_help: True, generates a sample-policy file with help text
