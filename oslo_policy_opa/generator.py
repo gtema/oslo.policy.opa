@@ -56,9 +56,7 @@ ENFORCER_OPTS = [
 
 
 def normalize_name(name: str) -> str:
-    return name.translate(
-        str.maketrans({":": "_", "-": "_", "*": "any"})
-    ).lower()
+    return name.translate(str.maketrans({":": "_", "-": "_", "*": "any"}))
 
 
 def deep_dict_set(path_parts: list[str], val) -> dict[str, typing.Any]:
@@ -168,7 +166,7 @@ class BaseOpaCheck:
     @abc.abstractmethod
     def get_opa_policy_tests(
         self,
-        policy_tests: dict[str, list[str]],
+        rules: dict[str, "BaseOpaCheck"],
         rule_name: typing.Optional[str] = None,
     ) -> list[str]:
         raise NotImplementedError()
@@ -188,13 +186,6 @@ class TrueCheck(BaseOpaCheck):
     def get_footer(self):
         return ""
 
-    def get_opa_policy_tests(
-        self,
-        policy_tests: dict[str, list[str]],
-        rule_name: typing.Optional[str] = None,
-    ) -> list[str]:
-        return []
-
     def get_opa_policy(
         self, global_results: dict[str, list[str]]
     ) -> list[str]:
@@ -203,10 +194,17 @@ class TrueCheck(BaseOpaCheck):
     def get_opa_incremental_rule_name(self) -> str:
         return "true"
 
+    def get_opa_policy_tests(
+        self,
+        rules: dict[str, BaseOpaCheck],
+        rule_name: typing.Optional[str] = None,
+    ) -> list[str]:
+        return []
+
     def get_opa_policy_test_data(
-        self, policy_tests: dict[str, list[str]], rule_name: str
+        self, rules: dict[str, BaseOpaCheck], rule_name: str
     ) -> dict:
-        return {}
+        return [{}]
 
 
 class FalseCheck(BaseOpaCheck):
@@ -235,9 +233,9 @@ class FalseCheck(BaseOpaCheck):
         return "false"
 
     def get_opa_policy_test_data(
-        self, policy_tests: dict[str, list[str]], rule_name: str
+        self, rule_name: str, rules: dict[str, BaseOpaCheck]
     ) -> dict:
-        return "false"
+        return ["false"]
 
 
 class AndCheck(BaseOpaCheck):
@@ -292,59 +290,28 @@ class AndCheck(BaseOpaCheck):
 
     def get_opa_policy_tests(
         self,
-        policy_tests: dict[str, list[str]],
+        rules: dict[str, BaseOpaCheck],
         rule_name: typing.Optional[str] = None,
     ) -> list[str]:
         tests: list[str] = []
         for rule in self.rules:
             rule_name = rule.get_opa_incremental_rule_name()
-            # rule_tests: list[str] = rule.get_opa_policy_tests(
-            #    policy_tests, rule_name
-            # )
-            if not isinstance(rule, AndCheck) and not isinstance(
-                rule, OrCheck
-            ):
-                test_data = rule.get_opa_policy_test_data(
-                    policy_tests, rule_name
-                )
+            test_datas = rule.get_opa_policy_test_data(rules, rule_name)
+            for i, test_data in enumerate(test_datas):
                 tests.append(
-                    f"test_{rule_name} if {jsonutils.dumps(test_data)}"
-                )
-            elif isinstance(rule, AndCheck):
-                test_datas: list[dict] = rule.get_opa_policy_test_data(
-                    policy_tests, rule_name
-                )
-                cnt = 0
-                for test_data in test_datas:
-                    tests.append(
-                        f"test_{rule_name}_{cnt} if {{ {rule_name}.allow with input as {jsonutils.dumps(test_data)}}}"
-                    )
-                    cnt += 1
-            elif isinstance(rule, OrCheck):
-                test_datas: list[dict] = rule.get_opa_policy_test_data(
-                    policy_tests, rule_name
-                )
-                cnt = 0
-                for test_data in test_datas:
-                    tests.append(
-                        f"test_{rule_name}_{cnt} if {{ {rule_name}.allow with input as {jsonutils.dumps(test_data)}}}"
-                    )
-                    cnt += 1
-            else:
-                tests.append(
-                    f"test_{rule_name} if {{ {rule_name}.allow with input as false}}"
+                    f"test_{rule_name}_{i} if {rule_name}.allow with input as {jsonutils.dumps(test_data)}"
                 )
         return tests
 
     def get_opa_policy_test_data(
-        self, policy_tests: dict[str, list[str]], rule_name: str
+        self, rules: dict[str, BaseOpaCheck], rule_name: str
     ) -> list[typing.Any]:
         tests: list[typing.Any] = []
         test_data: dict = {}
         and_or_mode: bool = False
         for rule in self.rules:
             rule_name = rule.get_opa_incremental_rule_name()
-            test_parts = rule.get_opa_policy_test_data(policy_tests, rule_name)
+            test_parts = rule.get_opa_policy_test_data(rules, rule_name)
             if isinstance(rule, AndCheck):
                 # A and (B and C) => [A+B+C]
                 for test in test_parts:
@@ -357,7 +324,8 @@ class AndCheck(BaseOpaCheck):
             else:
                 # A and B => [A+B]
                 if test_parts:
-                    test_data = deep_merge_dicts(test_data, test_parts)
+                    for test in test_parts:
+                        test_data = deep_merge_dicts(test_data, test)
 
         if len(tests) > 0:
             final_test_data: list[dict] = [test_data]
@@ -424,55 +392,43 @@ class OrCheck(BaseOpaCheck):
         return rule_names
 
     def get_opa_policy_tests(
-        self, policy_tests: dict[str, list[str]], oslo_rule_name: str
+        self, rules: dict[str, BaseOpaCheck], oslo_rule_name: str
     ) -> list[str]:
         tests: list[str] = []
         policy_rule_name = oslo_rule_name.split(":")[-1]
         for rule in self.rules:
             rule_name = rule.get_opa_incremental_rule_name()
+            test_datas = rule.get_opa_policy_test_data(rules, rule_name)
             if not isinstance(rule, AndCheck) and not isinstance(
                 rule, OrCheck
             ):
-                test_data = rule.get_opa_policy_test_data(
-                    policy_tests, rule_name
-                )
-                if test_data:
+                for i, test_data in enumerate(test_datas):
                     tests.append(
-                        f"test_{rule_name} if {{ {policy_rule_name}.allow with input as {jsonutils.dumps(test_data)}}}"
+                        f"test_{rule_name}_{i} if {policy_rule_name}.allow with input as {jsonutils.dumps(test_data)}"
                     )
             elif isinstance(rule, AndCheck):
-                test_datas: list[dict] = rule.get_opa_policy_test_data(
-                    policy_tests, rule_name
-                )
                 resulting_data = {}
-                cnt = 0
-                for test_data in test_datas:
+                for i, test_data in enumerate(test_datas):
                     resulting_data = deep_merge_dicts(
                         resulting_data, test_data
                     )
                     tests.append(
-                        f"test_{rule_name}_{cnt} if {{ {policy_rule_name}.allow with input as {jsonutils.dumps(test_data)}}}"
+                        f"test_{rule_name}_{i} if {policy_rule_name}.allow with input as {jsonutils.dumps(test_data)}"
                     )
-                    cnt += 1
             elif isinstance(rule, OrCheck):
                 # one rule of or is itself an or - just dump them individually
-                test_datas: list[dict] = rule.get_opa_policy_test_data(
-                    policy_tests, rule_name
-                )
-                cnt = 0
-                for test_data in test_datas:
+                for i, test_data in enumerate(test_datas):
                     tests.append(
-                        f"test_{rule_name}_{cnt} if {{ {policy_rule_name}.allow with input as {jsonutils.dumps(test_data)}}}"
+                        f"test_{rule_name}_{i} if {policy_rule_name}.allow with input as {jsonutils.dumps(test_data)}"
                     )
-                    cnt += 1
             else:
                 tests.append(
-                    f"test_{rule_name} if {{ {policy_rule_name}.allow with input as false}}"
+                    f"test_{rule_name} if {policy_rule_name}.allow with input as false"
                 )
         return tests
 
     def get_opa_policy_test_data(
-        self, policy_tests: dict[str, list[str]], rule_name: str
+        self, rules: dict[str, BaseOpaCheck], rule_name: str
     ) -> list[typing.Any]:
         tests: list[typing.Any] = []
         for rule in self.rules:
@@ -480,27 +436,22 @@ class OrCheck(BaseOpaCheck):
             test_data: dict = {}
             if isinstance(rule, AndCheck):
                 # A or (B and C) => [A, B+C]
-                test_parts = rule.get_opa_policy_test_data(
-                    policy_tests, rule_name
-                )
+                test_parts = rule.get_opa_policy_test_data(rules, rule_name)
                 for test in test_parts:
                     test_data = deep_merge_dicts(test_data, test)
                 tests.append(test_data)
             elif isinstance(rule, OrCheck):
                 # A or (B or C) => [A, B, C]
-                test_parts = rule.get_opa_policy_test_data(
-                    policy_tests, rule_name
-                )
+                test_parts = rule.get_opa_policy_test_data(rule_name)
                 for test in test_parts:
-                    tests.append(test_data)
+                    tests.append(test)
 
             elif not isinstance(rule, OrCheck):
                 # A or B => [A, B]
-                test_part = rule.get_opa_policy_test_data(
-                    policy_tests, rule_name
-                )
-                test_data = deep_merge_dicts(test_data, test_part)
-                tests.append(test_data)
+                test_parts = rule.get_opa_policy_test_data(rules, rule_name)
+                for test in test_parts:
+                    # test_data = deep_merge_dicts(test_data, test_part)
+                    tests.append(test)
 
         return tests
 
@@ -519,17 +470,17 @@ class RoleCheck(BaseOpaCheck):
 
     def get_opa_policy_tests(
         self,
-        policy_tests: dict[str, list[str]],
+        rules: dict[str, BaseOpaCheck],
         rule_name: typing.Optional[str] = None,
     ) -> list[str]:
         return []
 
     def get_opa_policy_test_data(
         self,
-        policy_tests: dict[str, list[str]],
+        rules: dict[str, BaseOpaCheck],
         rule_name: typing.Optional[str] = None,
     ) -> dict:
-        return {"credentials": {"roles": [self.check.match]}}
+        return [{"credentials": {"roles": [self.check.match]}}]
 
 
 class RuleCheck(BaseOpaCheck):
@@ -551,17 +502,35 @@ class RuleCheck(BaseOpaCheck):
 
     def get_opa_policy_tests(
         self,
-        policy_tests: dict[str, list[str]],
+        rules: dict[str, BaseOpaCheck],
         rule_name: typing.Optional[str] = None,
     ) -> list[str]:
-        return []
+        tests = []
+        policy_rule_name = normalize_name(rule_name.split(":")[-1])
+        referred_rule = rules.get(self.check.match)
+        if referred_rule:
+            test_datas = referred_rule.get_opa_policy_test_data(
+                rules, rule_name
+            )
+            if test_datas:
+                for i, test in enumerate(test_datas):
+                    tests.append(
+                        f"test_{policy_rule_name}_{i} if {policy_rule_name}.allow with input as {jsonutils.dumps(test)}"
+                    )
+        return tests
 
     def get_opa_policy_test_data(
         self,
-        policy_tests: dict[str, list[str]],
+        rules: dict[str, BaseOpaCheck],
         rule_name: typing.Optional[str] = None,
     ) -> dict:
-        return {}
+        referred_rule = rules.get(self.check.match)
+        if referred_rule:
+            test_data = referred_rule.get_opa_policy_test_data(
+                rules, rule_name
+            )
+            return test_data
+        return [{}]
 
 
 class GenericCheck(BaseOpaCheck):
@@ -657,13 +626,13 @@ class GenericCheck(BaseOpaCheck):
 
     def get_opa_policy_tests(
         self,
-        policy_tests: dict[str, list[str]],
+        rules: dict[str, BaseOpaCheck],
         rule_name: typing.Optional[str] = None,
     ) -> list[str]:
         return []
 
     def get_opa_policy_test_data(
-        self, policy_tests: dict[str, list[str]], oslo_rule_name: str
+        self, rules: dict[str, BaseOpaCheck], oslo_rule_name: str
     ) -> dict[str, typing.Any]:
         result: dict
         right = self.check.match
@@ -701,7 +670,7 @@ class GenericCheck(BaseOpaCheck):
                 }
                 result_right = deep_dict_set(right.split("."), value)
                 result = deep_merge_dicts(result_left, result_right)
-        return result
+        return [result]
 
 
 class NeutronOwnerCheck(BaseOpaCheck):
@@ -750,15 +719,19 @@ class NeutronOwnerCheck(BaseOpaCheck):
 
     def get_opa_policy_tests(
         self,
-        policy_tests: dict[str, list[str]],
+        # policy_tests: dict[str, list[str]],
+        rules: dict[str, BaseOpaCheck],
         rule_name: typing.Optional[str] = None,
     ) -> list[str]:
         return []
 
     def get_opa_policy_test_data(
-        self, policy_tests: dict[str, list[str]], oslo_rule_name: str
+        self,
+        # policy_tests: dict[str, list[str]],
+        rules: dict[str, BaseOpaCheck],
+        oslo_rule_name: str,
     ) -> dict:
-        return {}
+        return [{}]
 
 
 class NeutronFieldCheck(BaseOpaCheck):
@@ -835,13 +808,16 @@ class NeutronFieldCheck(BaseOpaCheck):
 
     def get_opa_policy_tests(
         self,
-        policy_tests: dict[str, list[str]],
+        # policy_tests: dict[str, list[str]],
+        rules: dict[str, BaseOpaCheck],
         rule_name: typing.Optional[str] = None,
     ) -> list[str]:
         return []
 
-    def get_opa_policy_test_data(self):
-        return {}
+    def get_opa_policy_test_data(
+        self, rules: dict[str, BaseOpaCheck], rule_name: str
+    ):
+        return [{}]
 
 
 class NotCheck(BaseOpaCheck):
@@ -882,15 +858,16 @@ class NotCheck(BaseOpaCheck):
 
     def get_opa_policy_tests(
         self,
-        policy_tests: dict[str, list[str]],
-        rule_name: typing.Optional[str] = None,
+        # policy_tests: dict[str, list[str]],
+        rules: dict[str, BaseOpaCheck],
+        rule_name: typing.Optional[str],
     ) -> list[str]:
         return []
 
     def get_opa_policy_test_data(
-        self, policy_tests: dict[str, list[str]], rule_name: str
+        self, rules: dict[str, BaseOpaCheck], rule_name: str
     ) -> dict:
-        return {}
+        return [{}]
 
 
 def _convert_oslo_policy_check_to_opa_check(
@@ -930,6 +907,7 @@ def _convert_oslo_policy_check_to_opa_check(
 def _translate_default_rule(
     default: oslo_policy.policy._BaseRule,
     results: dict[str, list[str]],
+    converted_rules: dict[str, BaseOpaCheck],
     policy_tests: dict[str, list[str]],
     namespace: typing.Optional[str] = None,
 ):
@@ -940,15 +918,17 @@ def _translate_default_rule(
     :param namespace: Namespace name that is prepended to the Rule checks for
         structuring a policy rule into dedicated policy files.
     :returns: A string containing a yaml representation of the RuleDefault
-    """  # noqa: E501
+    """
 
-    # LOG.info(f"Converting {default.check}")
     opa_rule = _convert_oslo_policy_check_to_opa_check(default.check)
+    converted_rules[default.name] = opa_rule
     lib_part_rules = {}
     opa_part_rules = opa_rule.get_opa_policy(lib_part_rules)
-    opa_rule_tests = opa_rule.get_opa_policy_tests(policy_tests, default.name)
+    # opa_rule_tests = opa_rule.get_opa_policy_tests(policy_tests, default.name)
+    opa_rule_tests = opa_rule.get_opa_policy_tests(
+        converted_rules, default.name
+    )
     rule_description = _get_rule_help(default)
-    # LOG.info(f"Converted {default} {getattr(default, 'operations', None)} into {opa_part_rules}")
     if hasattr(default, "operations") and default.operations:
         # This is the final role
         results.setdefault(default.name, [rule_description])
@@ -971,6 +951,8 @@ def _translate_default_rule(
         LOG.info(
             f"A library rule {default} with {opa_part_rules} and {lib_part_rules}"
         )
+        policy_tests[default.name] = opa_rule_tests
+        LOG.info(f"Tests for {default} are {opa_rule_tests}")
         rule_name = (
             normalize_name(default.name)
             if default.name != "default"
@@ -1097,6 +1079,7 @@ def _generate_opa_policy(namespace, output_dir=None):
 
     opa_policies: dict[str, list[str]] = {}
     opa_test_policies: dict[str, list[str]] = {}
+    converted_rules: dict[str, BaseOpaCheck] = {}
     for section in sorted(policies.keys()):
         rule_defaults = policies[section]
         for rule_default in rule_defaults:
@@ -1105,6 +1088,7 @@ def _generate_opa_policy(namespace, output_dir=None):
             _translate_default_rule(
                 rule_default,
                 opa_policies,
+                converted_rules,
                 opa_test_policies,
                 namespace=namespace,
             )

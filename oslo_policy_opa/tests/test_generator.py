@@ -17,7 +17,7 @@ from oslo_policy import _checks
 
 
 def test_normalize_name():
-    assert generator.normalize_name("a:b-C_d") == "a_b_c_d"
+    assert generator.normalize_name("a:b-C_d") == "a_b_C_d"
 
 
 def test_deep_merge_dicts():
@@ -58,7 +58,6 @@ def test_opa_test_data_generic_check():
     check = generator.GenericCheck(
         _checks.GenericCheck("tenant", "%(tenant_id)s")
     )
-    assert check.get_opa_policy_test_data(global_results, "dummy") == {
-        "credentials": {"tenant": "foo"},
-        "tenant_id": "foo",
-    }
+    assert check.get_opa_policy_test_data(global_results, "dummy") == [
+        {"credentials": {"tenant": "foo"}, "tenant_id": "foo"}
+    ]
