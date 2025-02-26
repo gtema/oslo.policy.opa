@@ -262,12 +262,41 @@ Policy `list_roles` provided above can be tested simulating different inputs:
        with data.assignments as {"list_roles": {"foo": {}}}
    }
 
+The generator is also generating tests (as long as it is possible). This works
+perfectly fine for Keystone where mostly checks are inline and pretty bad for
+cinder that relies heavily on library rules.
+
+Neutron
+-------
+
+As usual Neutron is doing things `differently
+<https://docs.openstack.org/neutron/latest/contributor/internals/policy.html>`.
+There are custom checks that fetch related resources dynamically. This sounds
+logical since it allows to implement better policies beyond the RBAC, but it
+pretty bad for the OpenPolicyAgent integration. It is not possible to access
+Neutron from OPA directly. Technically exactly this case is solved using the
+`external data <https://www.openpolicyagent.org/docs/latest/external-data/>`.
+Neutron data is relatively dynamic and need to be available immediately
+(creating port immediately after creating network would need to access network
+properties). Therefore the only way of addressing this is to query the data
+dynamically. Here come the challenge: how to do this? It would be possible to
+implement custom functions for OPA to either invoke Neutron API or access DB
+directly. Sadly this requires recompiling OPA and distrubuting custom build.
+That is not very practical. The other way would be to rely on already supported
+HTTP function, but requires building small adapter that either translates calls
+into the Neutron API (the call was already triggered by neutron api, so why do
+we go again to neutron api? Could we have a closed loop?) or DB. In either way
+it is possible to implement certain caching since OPA http function supports
+that.
+
 Using
 -----
 
 - Install oslo.policy.opa in the project environment
 
-- Modify oslo_policy rules to only call `opa:<RULE_NAME>` for every rule
+- Modify oslo_policy rules to only call `opa:<RULE_NAME>` for every rule (you
+  can use `oslopolicy-opa-sample-generator --namespace <NAMESPACE>
+  --output-file policy.yaml` to generate one for you)
 
 - Deploy OPA server with generated policies (i.e. `opa run -s keystone`)
 
@@ -281,3 +310,17 @@ Using
    opa_url = http://localhost:8181
 
 - Start Keystone and enjoy
+
+
+Links
+-----
+
+Idea with integrating oslo.policy with OpenPolicyAgent is not new and there is
+previous work existing that unfortunately never did it into the OpenStack:
+
+- https://review.opendev.org/c/openstack/oslo.policy/+/614224
+
+- https://www.openstack.org/videos/summits/berlin-2018/dynamic-policy-for-openstack-with-open-policy-agent
+
+This project tries to continue with where previous work stopped adapting to the
+current state of world.
