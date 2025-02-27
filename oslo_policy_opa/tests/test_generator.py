@@ -24,6 +24,9 @@ def test_deep_merge_dicts():
     assert generator.deep_merge_dicts(
         {"a": {"b": {"c": "d"}}}, {"a": {"b": {"e": "f"}}, "g": "h"}
     ) == {"a": {"b": {"c": "d", "e": "f"}}, "g": "h"}
+    assert generator.deep_merge_dicts(
+        {"a": {"b": {"c": ["d"]}}}, {"a": {"b": {"c": ["e"]}}}
+    ) == {"a": {"b": {"c": ["d", "e"]}}}
 
 
 def test_product():

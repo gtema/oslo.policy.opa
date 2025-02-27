@@ -19,6 +19,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: 1.1.0
+
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
@@ -32,7 +37,13 @@ jobs:
         run: uv run oslopolicy-opa-policy-generator --namespace ${{ matrix.service }} --output-dir artifacts/${{ matrix.service }}
 
       - name: Generate oslo.policy file per service
-        run: uv run oslopolicy-opa-sample-generator --namespace ${{ matrix.service }} --output-file artifacts/${{ matrix.service }}/policy.yaml
+        run: uv run oslopolicy-opa-sample-generator --namespace ${{ matrix.service }} --output-file artifacts/${{ matrix.service }}.yaml
+
+      - name: Format policy files
+        run: opa fmt artifacts/${{ matrix.service }} -w
+
+      - name: Test policy files
+        run: opa test artifacts/${{ matrix.service }}
 
       - uses: actions/upload-artifact@v4
         with:
