@@ -24,6 +24,9 @@ def test_deep_merge_dicts():
     assert generator.deep_merge_dicts(
         {"a": {"b": {"c": "d"}}}, {"a": {"b": {"e": "f"}}, "g": "h"}
     ) == {"a": {"b": {"c": "d", "e": "f"}}, "g": "h"}
+    assert generator.deep_merge_dicts(
+        {"a": {"b": {"c": ["d"]}}}, {"a": {"b": {"c": ["e"]}}}
+    ) == {"a": {"b": {"c": ["d", "e"]}}}
 
 
 def test_product():
@@ -59,5 +62,5 @@ def test_opa_test_data_generic_check():
         _checks.GenericCheck("tenant", "%(tenant_id)s")
     )
     assert check.get_opa_policy_test_data(global_results, "dummy") == [
-        {"credentials": {"tenant": "foo"}, "tenant_id": "foo"}
+        {"input": {"credentials": {"tenant": "foo"}, "tenant_id": "foo"}}
     ]
