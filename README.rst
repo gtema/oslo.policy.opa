@@ -94,7 +94,6 @@ Policy language
 ---------------
 
 .. code-block:: rego
-  :caption: identity/create_project.rego
 
   package identity.create_project
 
@@ -139,7 +138,6 @@ implementing ReBAC in addition to the default policy rules.
 Imagine the following policy for listing Keystone roles:
 
 .. code-block:: rego
-   :caption: identity/list_roles.rego
 
    package identity.list_roles
 
@@ -165,7 +163,6 @@ domain roles without being an admin or manager we could first rewrite the
 policy:
 
  .. code-block:: rego
-   :caption: identity/list_roles.rego
 
    package identity.list_roles
 
@@ -195,7 +192,6 @@ time providing capability to have preciese tests for policies and also the
 decision logs (those can be pushed to the external service).
 
 .. code-block:: json
-   :caption: OPA decision_log
 
    {
      "decision_id":"adeedec1-d260-476d-a98d-91b94bc61c00",
@@ -238,7 +234,6 @@ Policy testing
 Policy `list_roles` provided above can be tested simulating different inputs:
 
 .. code-block:: rego
-   :caption: identity/list_roles_test.rego
 
    package identity.list_roles_test
 
