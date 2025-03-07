@@ -40,6 +40,7 @@ class OPACheck(_checks.Check):
     opts_registered = False
 
     def __call__(self, target, creds, enforcer, current_rule=None):
+        LOG.info(f"OPA check invoked for {target} at {self.match}")
         if not self.opts_registered:
             opts._register(enforcer.conf)
             self.opts_registered = True
@@ -51,7 +52,7 @@ class OPACheck(_checks.Check):
                 enforcer.conf.oslo_policy.opa_url,
                 "v1",
                 "data",
-                normalize_name(current_rule),
+                normalize_name(self.match),
                 "allow",
             ]
         )
@@ -65,10 +66,10 @@ class OPACheck(_checks.Check):
                 if r.status_code == 200:
                     result = r.json().get("result")
                     LOG.debug(
-                        f"Policy evaluation in OPA returned {result.get('allow')} at {(end - start) * 1000}ms"
+                        f"Policy evaluation in OPA returned {result} at {(end - start) * 1000}ms"
                     )
-                    if result:
-                        return result.get("allow", False)
+                    if isinstance(result, bool):
+                        return result
                 else:
                     LOG.error(
                         "Exception during checking OPA. Status_code = %s",
@@ -76,7 +77,7 @@ class OPACheck(_checks.Check):
                     )
         except Exception as ex:
             LOG.error(
-                "Exception during checking OPA. Fallback to the DocumentedRuleDefault"
+                f"Exception during checking OPA {ex}. Fallback to the DocumentedRuleDefault"
             )
         # When any exception has happened during the communication or OPA
         # result processing we want to fallback to the default rule
