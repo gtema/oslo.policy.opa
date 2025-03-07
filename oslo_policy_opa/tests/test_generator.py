@@ -46,13 +46,21 @@ def test_opa_generic_check():
         _checks.GenericCheck("tenant", "%(tenant_id)s")
     )
     assert check.get_opa_policy(global_results) == [
-        "input.credentials.tenant == input.tenant_id"
+        "input.credentials.tenant == input.target.tenant_id"
     ]
     check = generator.GenericCheck(
         _checks.GenericCheck("'member'", "%(role.name)s")
     )
     assert check.get_opa_policy(global_results) == [
-        '"member" == input.role.name'
+        '"member" == input.target.role.name'
+    ]
+
+
+def test_opa_role_check():
+    global_results = {}
+    check = generator.RoleCheck(_checks.RoleCheck("'role'", "member"))
+    assert check.get_opa_policy(global_results) == [
+        '"member" in input.credentials.roles'
     ]
 
 
@@ -62,5 +70,10 @@ def test_opa_test_data_generic_check():
         _checks.GenericCheck("tenant", "%(tenant_id)s")
     )
     assert check.get_opa_policy_test_data(global_results, "dummy") == [
-        {"input": {"credentials": {"tenant": "foo"}, "tenant_id": "foo"}}
+        {
+            "input": {
+                "credentials": {"tenant": "foo"},
+                "target": {"tenant_id": "foo"},
+            }
+        }
     ]

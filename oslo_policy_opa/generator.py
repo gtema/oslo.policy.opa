@@ -118,32 +118,40 @@ GET_FUNCTIONS: dict[str, str] = {
     "floatingip": (
         "get_floatingip(id) := net if {"
         "net := http.send({"
-        '  "url": concat("http://localhost:9098/floatingip/", id),'
-        '  "timeout": 1,'
+        '  "url": concat("/", ["http://localhost:9098/floatingip", id]),'
+        '  "method": "get",'
+        '  "timeout": "1s",'
+        '  "cache": true'
         "}).body"
         "}"
     ),
     "network": (
         "get_network(id) := net if {"
         "net := http.send({"
-        '  "url": concat("http://localhost:9098/network/", id),'
-        '  "timeout": 1,'
+        '  "url": concat("/", ["http://localhost:9098/network", id]),'
+        '  "method": "get",'
+        '  "timeout": "1s",'
+        '  "cache": true'
         "}).body"
         "}"
     ),
     "policy": (
         "get_policy(id) := net if {"
         "net := http.send({"
-        '  "url": concat("http://localhost:9098/policy/", id),'
-        '  "timeout": 1,'
+        '  "url": concat("/", ["http://localhost:9098/policy", id]),'
+        '  "method": "get",'
+        '  "timeout": "1s",'
+        '  "cache": true'
         "}).body"
         "}"
     ),
     "security_group": (
         "get_security_group(id) := net if {"
         "net := http.send({"
-        '  "url": concat("http://localhost:9098/security_group/", id),'
-        '  "timeout": 1,'
+        '  "url": concat("/", ["http://localhost:9098/security_group", id]),'
+        '  "method": "get",'
+        '  "timeout": "1s",'
+        '  "cache": true'
         "}).body"
         "}"
     ),
@@ -593,7 +601,7 @@ class GenericCheck(BaseOpaCheck):
         right = self.check.match
         check: str = ""
         if right.startswith("%(") and right.endswith(")s"):
-            right = f"input.{right[2:-2]}"
+            right = f"input.target.{right[2:-2]}"
         else:
             # This is a string so we need to figure out what is it: a string,
             # an int, bool, None, ...
@@ -678,7 +686,7 @@ class GenericCheck(BaseOpaCheck):
         right_is_path = False
         if right.startswith("%(") and right.endswith(")s"):
             # right side is a path
-            right = f"{right[2:-2]}"
+            right = f"target.{right[2:-2]}"
             right_is_path = True
         else:
             # This is a literal
@@ -748,7 +756,7 @@ class NeutronOwnerCheck(BaseOpaCheck):
                         GET_FUNCTIONS[res]
                     )
                     return [
-                        f"lib.get_{res}(input.{res_field}).{field} == input.{self.check.kind}"
+                        f"lib.get_{res}(input.target.{res_field}).{field} == input.target.{self.check.kind}"
                     ]
                 else:
                     return [
@@ -759,7 +767,7 @@ class NeutronOwnerCheck(BaseOpaCheck):
                     GET_FUNCTIONS["security_group"]
                 )
                 return [
-                    f"input.{self.target_field} == input.credentials.{self.target_field}"
+                    f"input.target.{self.target_field} == input.credentials.{self.target_field}"
                 ]
         except Exception as ex:
             LOG.error(f"Error during neutron owner check conversion: {ex}")
@@ -817,8 +825,10 @@ class NeutronOwnerCheck(BaseOpaCheck):
                     return [
                         {
                             "input": {
-                                res_field: "foo",
-                                self.check.kind: "bar",
+                                "target": {
+                                    res_field: "foo",
+                                    self.check.kind: "bar",
+                                }
                             },
                             f"data.lib.get_{res}": {field: "bar"},
                         }
@@ -843,9 +853,9 @@ class NeutronFieldCheck(BaseOpaCheck):
         self.resource, field_value = self.check._orig_match.split(":", 1)
         self.field, self.value = field_value.split("=", 1)
         if ":" in self.field:
-            self.left = f'input["{self.field}"]'
+            self.left = f'input.target["{self.field}"]'
         else:
-            self.left = f"input.{self.field}"
+            self.left = f"input.target.{self.field}"
         if self.value.startswith("~"):
             self.check = f'regex.match("{self.value}", {self.left})'
         else:
@@ -896,7 +906,7 @@ class NeutronFieldCheck(BaseOpaCheck):
                 right = "true"
             elif right == "not":
                 right = "false"
-            check = f'net := lib.get_network(input.network_id)\nnet["{self.field}"] == {right}'
+            check = f'net := lib.get_network(input.target.network_id)\nnet["{self.field}"] == {right}'
             global_results.setdefault("lib", []).append(
                 GET_FUNCTIONS["network"]
             )
@@ -945,12 +955,15 @@ class NeutronFieldCheck(BaseOpaCheck):
         if self.resource == "networks" and self.field == "shared":
             return [
                 {
-                    "input": {"network_id": "foo"},
+                    "input": {"target": {"network_id": "foo"}},
                     "data.lib.get_network": {"shared": True},
                 }
             ]
-        elif self.check == 'regex.match("~^network:", input.device_owner)':
-            return [{"input": {"device_owner": "network:foo"}}]
+        elif (
+            self.check
+            == 'regex.match("~^network:", input.target.device_owner)'
+        ):
+            return [{"input": {"target": {"device_owner": "network:foo"}}}]
         else:
             try:
                 right = ast.literal_eval(self.value)
@@ -961,7 +974,8 @@ class NeutronFieldCheck(BaseOpaCheck):
             except (ValueError, SyntaxError):
                 value = self.value
             td = deep_dict_set(
-                self.left.split("."), value if not reverse else "foo"
+                ["input", "target", self.field],
+                value if not reverse else "foo",
             )
             return [td]
 
