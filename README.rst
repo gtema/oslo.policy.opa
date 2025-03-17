@@ -284,6 +284,27 @@ we go again to neutron api? Could we have a closed loop?) or DB. In either way
 it is possible to implement certain caching since OPA http function supports
 that.
 
+This project comes with the override for the Neutron policy enforcement hook
+that allows better efficiency of the policy evaluation. Instead of evaluating
+whether the record can be accessed by the calling user followed by additional
+checks for every attribute of the filtered records a single call can be done to
+the OpenPolicyAgent to filter the record and all fields in one operation. This
+is supported by the `opa_filter` oslo_policy rule. 
+
+.. code-block::
+
+   ..
+   "get_port": "opa_filter:get_port"
+   ..
+
+In order this to work Neutron `/etc/neutron/api-paste.ini` file must be
+modified to use the modified version of the policy enforcement hook:
+
+.. code-block:: ini
+
+  [app:neutronapiapp_v2_0]
+  paste.app_factory = oslo_policy_opa.neutron:APIRouter.factory
+
 Using
 -----
 

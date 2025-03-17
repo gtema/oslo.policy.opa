@@ -21,6 +21,7 @@ oslopolicy-opa-sample-generator = "oslo_policy_opa.generator:generate_sample"
 
 [project.entry-points."oslo.policy.rule_checks"]
 opa = "oslo_policy_opa.opa:OPACheck"
+opa_filter = "oslo_policy_opa.opa:OPAFilter"
 
 [project.optional-dependencies]
 generate = [

@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.9"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -2378,7 +2379,6 @@ wheels = [
 
 [[package]]
 name = "oslo-policy-opa"
-version = "0.0.1.dev27"
 source = { editable = "." }
 dependencies = [
     { name = "oslo-log" },
@@ -2417,6 +2417,7 @@ requires-dist = [
     { name = "oslo-policy", specifier = ">=4" },
     { name = "requests", specifier = ">2.30" },
 ]
+provides-extras = ["generate"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8,<9" }]
