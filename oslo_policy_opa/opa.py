@@ -10,8 +10,10 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import concurrent.futures
 import contextlib
 import copy
+from functools import partial
 import logging
 import os
 import requests
@@ -31,7 +33,7 @@ def normalize_name(name: str) -> str:
 
 
 class OPACheck(_checks.Check):
-    """Check ``opa:`` rules by calling to a remote OpenPolicyAgent server.
+    """Oslo.policy ``opa:`` check
 
     Invoke OPA for the authorization policy evaluation. In case of errors
     fallback to the default rule definition.
@@ -40,7 +42,6 @@ class OPACheck(_checks.Check):
     opts_registered = False
 
     def __call__(self, target, creds, enforcer, current_rule=None):
-        LOG.info(f"OPA check invoked for {target} at {self.match}")
         if not self.opts_registered:
             opts._register(enforcer.conf)
             self.opts_registered = True
@@ -65,11 +66,10 @@ class OPACheck(_checks.Check):
                 end = time.time()
                 if r.status_code == 200:
                     result = r.json().get("result")
-                    LOG.debug(
-                        f"Policy evaluation in OPA returned {result} at {(end - start) * 1000}ms"
-                    )
                     if isinstance(result, bool):
                         return result
+                    else:
+                        return False
                 else:
                     LOG.error(
                         "Exception during checking OPA. Status_code = %s",
@@ -103,4 +103,63 @@ class OPACheck(_checks.Check):
             if type(element) is object:
                 temp_target[key] = {}
         json = {"input": {"target": temp_target, "credentials": creds}}
+        return json
+
+def query_filter(json: dict, url: str, timeout: int):
+    try:
+        with contextlib.closing(
+            requests.post(url, json=json, timeout=1)
+        ) as r:
+            if r.status_code == 200:
+                return r.json().get("result")
+            else:
+                LOG.error(
+                    "Exception during checking OPA. Status_code = %s",
+                    r.status_code,
+                )
+    except Exception as ex:
+        LOG.error(f"Exception during checking OPA {ex}.")
+
+
+class OPAFilter(OPACheck):
+    """Oslo.policy ``opa_filter:`` check
+
+    Invoke OPA for the authorization policy evaluation. It is expected that the
+    result is a dict with `allowed: BOOL` and `filtered: DICT_OF_FILTERED_ATTRIBUTES`.
+    """
+
+    opts_registered = False
+
+    def __call__(self, targets: list[dict], creds, enforcer, current_rule=None):
+        if not self.opts_registered:
+            opts._register(enforcer.conf)
+            self.opts_registered = True
+
+        timeout = enforcer.conf.oslo_policy.remote_timeout
+
+        results = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            url = "/".join(
+                [
+                    enforcer.conf.oslo_policy.opa_url,
+                    "v1",
+                    "data",
+                    normalize_name(self.match),
+                ]
+            )
+            results = executor.map(
+                partial(query_filter, url=url, timeout=timeout), 
+                [self._construct_payload(creds, current_rule, enforcer, target) for target in targets]
+            )
+            executor.shutdown()
+
+            for result in results:
+                if result.get("allow", False):
+                    filtered = result.get("filtered", {})
+                    if filtered:
+                        yield filtered
+
+    @staticmethod
+    def _construct_payload(creds, current_rule, enforcer, target):
+        json = {"input": {"target": target, "credentials": creds}}
         return json
