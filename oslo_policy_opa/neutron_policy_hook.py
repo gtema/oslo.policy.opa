@@ -92,7 +92,7 @@ class PolicyHook(neutron_policy_enforcement.PolicyHook):
                     creds = neutron_context
                 resp = list(rule(to_process, creds, policy.get_enforcer()))
                 if is_single and len(resp) == 0:
-                    raise oslo_policy.PolicyNotAuthorized()
+                    raise oslo_policy.PolicyNotAuthorized(rule, action, creds)
             else:
                 resp = [
                     self._get_filtered_item(
