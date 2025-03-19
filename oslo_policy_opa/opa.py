@@ -100,16 +100,18 @@ class OPACheck(_checks.Check):
         temp_target = copy.deepcopy(target)
         for key in target.keys():
             element = target.get(key)
-            if type(element) is object:
+            if type(element) is object or not (
+                isinstance(element, (str, int, float, bool, list, tuple, dict))
+                or element is None
+            ):
                 temp_target[key] = {}
         json = {"input": {"target": temp_target, "credentials": creds}}
         return json
 
+
 def query_filter(json: dict, url: str, timeout: int):
     try:
-        with contextlib.closing(
-            requests.post(url, json=json, timeout=1)
-        ) as r:
+        with contextlib.closing(requests.post(url, json=json, timeout=1)) as r:
             if r.status_code == 200:
                 return r.json().get("result")
             else:
@@ -130,7 +132,9 @@ class OPAFilter(OPACheck):
 
     opts_registered = False
 
-    def __call__(self, targets: list[dict], creds, enforcer, current_rule=None):
+    def __call__(
+        self, targets: list[dict], creds, enforcer, current_rule=None
+    ):
         if not self.opts_registered:
             opts._register(enforcer.conf)
             self.opts_registered = True
@@ -148,8 +152,13 @@ class OPAFilter(OPACheck):
                 ]
             )
             results = executor.map(
-                partial(query_filter, url=url, timeout=timeout), 
-                [self._construct_payload(creds, current_rule, enforcer, target) for target in targets]
+                partial(query_filter, url=url, timeout=timeout),
+                [
+                    self._construct_payload(
+                        creds, current_rule, enforcer, target
+                    )
+                    for target in targets
+                ],
             )
             executor.shutdown()
 

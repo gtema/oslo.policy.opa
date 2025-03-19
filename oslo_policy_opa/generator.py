@@ -756,7 +756,7 @@ class NeutronOwnerCheck(BaseOpaCheck):
                         GET_FUNCTIONS[res]
                     )
                     return [
-                        f"lib.get_{res}(input.target.{res_field}).{field} == input.target.{self.check.kind}"
+                        f"lib.get_{res}(input.target.{res_field}).{field} == input.credentials.{self.check.kind}"
                     ]
                 else:
                     return [
@@ -825,9 +825,11 @@ class NeutronOwnerCheck(BaseOpaCheck):
                     return [
                         {
                             "input": {
+                                "credentials": {
+                                    self.check.kind: "bar",
+                                },
                                 "target": {
                                     res_field: "foo",
-                                    self.check.kind: "bar",
                                 }
                             },
                             f"data.lib.get_{res}": {field: "bar"},
