@@ -59,7 +59,12 @@ ENFORCER_OPTS = [
 
 
 def normalize_name(name: str) -> str:
-    return name.translate(str.maketrans({":": "_", "-": "_", "*": "any"}))
+    if name == "default":
+        return "dflt"
+    else:
+        return name.translate(
+            str.maketrans({":": "_", "-": "_", "*": "any"})
+        )
 
 
 def deep_dict_set(path_parts: list[str], val) -> dict[str, typing.Any]:
@@ -165,6 +170,8 @@ def _get_enforcer(namespace):
         enforcer object can be found.
     :returns: a policy.Enforcer object
     """
+    if namespace.startswith("neutron-"):
+        namespace = "neutron"
     mgr = stevedore.named.NamedExtensionManager(
         "oslo.policy.enforcer",
         names=[namespace],
@@ -351,7 +358,7 @@ class AndCheck(BaseOpaCheck):
                     f"with {data_key} as {jsonutils.dumps(data_val)}"
                 )
             tests.append(
-                f"test_{rule_name}_{i} if {policy_rule_name}.allow {' '.join(with_parts)}"
+                f"test_{rule_name}_{i} if {normalize_name(policy_rule_name)}.allow {' '.join(with_parts)}"
             )
         return tests
 
@@ -536,7 +543,7 @@ class RuleCheck(BaseOpaCheck):
         return [f"lib.{rule_name}"]
 
     def get_opa_incremental_rule_name(self) -> str:
-        return self.check.match
+        return normalize_name(self.check.match)
 
     def get_opa_policy_tests(
         self,
