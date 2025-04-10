@@ -97,7 +97,16 @@ class OPACheck(_checks.Check):
         # Convert instances of object() in target temporarily to
         # empty dict to avoid circular reference detection
         # errors in jsonutils.dumps().
-        temp_target = copy.deepcopy(target)
+        #
+        # Glance uses weird object
+        # (https://opendev.org/openstack/glance/src/branch/master/glance/api/policy.py)
+        # as the target which cannot be copied. If ever a target is not a
+        # dictionary iterate over the target (which is similar to what
+        # oslo.policy would do) and use the result as the key to use.
+        if not isinstance(target, dict):
+            temp_target = {k: copy.deepcopy(target[k]) for k in target}
+        else:
+            temp_target = copy.deepcopy(target)
         for key in target.keys():
             element = target.get(key)
             if type(element) is object or not (

@@ -62,9 +62,7 @@ def normalize_name(name: str) -> str:
     if name == "default":
         return "dflt"
     else:
-        return name.translate(
-            str.maketrans({":": "_", "-": "_", "*": "any"})
-        )
+        return name.translate(str.maketrans({":": "_", "-": "_", "*": "any"}))
 
 
 def deep_dict_set(path_parts: list[str], val) -> dict[str, typing.Any]:
@@ -328,10 +326,11 @@ class AndCheck(BaseOpaCheck):
                 incremental_rule_name = rule.get_opa_incremental_rule_name()
                 results.append(incremental_rule_name)
                 if incremental_rule_name not in global_results:
+                    subrules = "\n ".join(opa_rule_repr)
                     global_results.setdefault(
                         incremental_rule_name, []
                     ).append(
-                        f"#{rule}\n{incremental_rule_name} if {{\n  {'\n  '.join(opa_rule_repr)}\n}}"
+                        f"#{rule}\n{incremental_rule_name} if {{\n  {subrules}\n}}"
                     )
 
         return ["\n  ".join(results)]
@@ -832,12 +831,8 @@ class NeutronOwnerCheck(BaseOpaCheck):
                     return [
                         {
                             "input": {
-                                "credentials": {
-                                    self.check.kind: "bar",
-                                },
-                                "target": {
-                                    res_field: "foo",
-                                }
+                                "credentials": {self.check.kind: "bar"},
+                                "target": {res_field: "foo"},
                             },
                             f"data.lib.get_{res}": {field: "bar"},
                         }
