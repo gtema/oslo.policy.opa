@@ -46,7 +46,7 @@ class OPACheck(_checks.Check):
             opts._register(enforcer.conf)
             self.opts_registered = True
 
-        timeout = enforcer.conf.oslo_policy.remote_timeout
+        timeout = getattr(enforcer.conf.oslo_policy, "remote_timeout", 1)
 
         url = "/".join(
             [
@@ -148,7 +148,7 @@ class OPAFilter(OPACheck):
             opts._register(enforcer.conf)
             self.opts_registered = True
 
-        timeout = enforcer.conf.oslo_policy.remote_timeout
+        timeout = getattr(enforcer.conf.oslo_policy, "remote_timeout", 1)
 
         results = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
