@@ -1,0 +1,5 @@
+# Dependencies here are present for backwards compatibility with older python
+# (building tools) not properly supporting pyproject.toml
+oslo.log>=6 # Apache-2.0
+oslo.policy>=4 # Apache-2.0
+requests>2.30 # Apache-2.0
