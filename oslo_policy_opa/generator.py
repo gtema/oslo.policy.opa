@@ -1326,10 +1326,8 @@ def _generate_opa_policy(namespace, output_dir=None):
                 output.write(f"import data.lib\n\n")
             for opa_policy_rule in opa_policy:
                 import_match = IMPORT_REGEX.match(opa_policy_rule)
-                # print(import_match)
-                # if import_match:
-                #    for m in import_match.groups():
-                #        print(m[3:])
+                if namespace == "glance":
+                    opa_policy_rule = opa_policy_rule.replace("member_id", "member")
                 output.write(opa_policy_rule)
                 output.write("\n")
             if output != sys.stdout:
@@ -1350,6 +1348,8 @@ def _generate_opa_policy(namespace, output_dir=None):
                 )
                 num: int = 1
                 for opa_policy_rule_test in tests:
+                    if namespace == "glance":
+                        opa_policy_rule_test = opa_policy_rule_test.replace("member_id", "member")
                     output.write(opa_policy_rule_test)
                     output.write("\n")
                     num += 1
