@@ -54,7 +54,12 @@ ENFORCER_OPTS = [
         "namespace",
         help='Option namespace under "oslo.policy.enforcer" in '
         "which to look for a policy.Enforcer.",
-    )
+    ),
+    cfg.StrOpt(
+        "policy-file",
+        help="Optional policy.yaml file to use as a source of policy"
+            "customization (full path)",
+    ),
 ]
 
 
@@ -1072,11 +1077,12 @@ def _convert_oslo_policy_check_to_opa_check(
 
 
 def _translate_default_rule(
-    default: oslo_policy.policy._BaseRule,
+    rule: oslo_policy.policy._BaseRule,
     results: dict[str, list[str]],
     converted_rules: dict[str, BaseOpaCheck],
     policy_tests: dict[str, list[str]],
     namespace: typing.Optional[str] = None,
+    rule_operations: typing.Optional[list[dict]] = None,
 ):
     """Create a yaml node from policy.RuleDefault or policy.DocumentedRuleDefault.
 
@@ -1084,62 +1090,59 @@ def _translate_default_rule(
     :param results: A dictionary with relevant policy rules that is shared globally
     :param namespace: Namespace name that is prepended to the Rule checks for
         structuring a policy rule into dedicated policy files.
+    :param rule_operations: Operations value for the Rule if it is not an
+        instance of DocumentedRuleDefault
     :returns: A string containing a yaml representation of the RuleDefault
     """
 
-    rule_check = default.check
+    rule_check = rule.check
     opa_rule = None
     if namespace == "neutron":
         # For neutron we need some hacks to deal with custom checks
-        if "floatingip_port_forwarding" in str(default.name):
+        if "floatingip_port_forwarding" in str(rule.name):
             # floatingip_port_forwarding ext_parent_owner means floatingip.
             # Replace it for easier conversion
             rule_check = oslo_policy._parser.parse_rule(
-                str(default.check).replace(
+                str(rule.check).replace(
                     "rule:ext_parent_owner",
                     "tenant_id:%(ext_parent_floatingip:tenant_id)s",
                 )
             )
-        elif "policy" in default.name and "rule" in default.name:
+        elif "policy" in rule.name and "rule" in rule.name:
             # xxx_policy_yyy_rule ext_parent_owner means policy.
             # Replace it for easier conversion
             rule_check = oslo_policy._parser.parse_rule(
-                str(default.check).replace(
+                str(rule.check).replace(
                     "rule:ext_parent_owner",
                     "tenant_id:%(ext_parent_policy:tenant_id)s",
                 )
             )
-    if isinstance(default.check, oslo_policy._checks.RuleCheck):
-        if (
-            default.check.match in converted_rules
-            and default.check.match in results
-        ):
+    if isinstance(rule.check, oslo_policy._checks.RuleCheck):
+        if rule.check.match in converted_rules and rule.check.match in results:
             # The referred rule is already converted and it is not a regular lib
             # rule (i.e. in neutron
             # "delete_alias_minimum_packet_rate_rule: rule:delete_policy_minimum_packet_rate_rule)"
             # in this case we should replace referred rule with the already
             # converted value
-            opa_rule = converted_rules[default.check.match]
+            opa_rule = converted_rules[rule.check.match]
     if not opa_rule:
         opa_rule = _convert_oslo_policy_check_to_opa_check(rule_check)
-    converted_rules[default.name] = opa_rule
+    converted_rules[rule.name] = opa_rule
     lib_part_rules = {}
     opa_part_rules = opa_rule.get_opa_policy(lib_part_rules)
-    # opa_rule_tests = opa_rule.get_opa_policy_tests(policy_tests, default.name)
-    opa_rule_tests = opa_rule.get_opa_policy_tests(
-        converted_rules, default.name
-    )
-    rule_description = _get_rule_help(default)
-    if hasattr(default, "operations") and default.operations:
+    # opa_rule_tests = opa_rule.get_opa_policy_tests(policy_tests, rule.name)
+    opa_rule_tests = opa_rule.get_opa_policy_tests(converted_rules, rule.name)
+    rule_description = _get_rule_help(rule, rule_operations)
+    if hasattr(rule, "operations") and rule.operations or rule_operations:
         # This is the final role
-        results.setdefault(default.name, [rule_description])
-        results[default.name].extend(
+        results.setdefault(rule.name, [rule_description])
+        results[rule.name].extend(
             [
                 f"allow {opa_rule.get_header()}  {rule}\n{opa_rule.get_footer()}\n"
                 for rule in opa_part_rules
             ]
         )
-        results[default.name].extend(
+        results[rule.name].extend(
             [
                 f"{subrule}\n"
                 for k, rules in lib_part_rules.items()
@@ -1149,21 +1152,19 @@ def _translate_default_rule(
         )
         if "lib" in lib_part_rules:
             # Append additional lib rules if those are not already there
-            for rule in lib_part_rules["lib"]:
-                if rule not in results["lib"]:
-                    results["lib"].append(rule)
-        policy_tests[default.name] = opa_rule_tests
+            for orule in lib_part_rules["lib"]:
+                if orule not in results["lib"]:
+                    results["lib"].append(orule)
+        policy_tests[rule.name] = opa_rule_tests
     else:
         # a library "rule"
         LOG.info(
-            f"A library rule {default} with {opa_part_rules} and {lib_part_rules} {default.check}"
+            f"A library rule {rule} with {opa_part_rules} and {lib_part_rules} {rule.check}"
         )
-        policy_tests[default.name] = opa_rule_tests
-        LOG.debug(f"Tests for {default} are {opa_rule_tests}")
+        policy_tests[rule.name] = opa_rule_tests
+        LOG.debug(f"Tests for {rule} are {opa_rule_tests}")
         rule_name = (
-            normalize_name(default.name)
-            if default.name != "default"
-            else "_default"
+            normalize_name(rule.name) if rule.name != "rule" else "_rule"
         )
         results.setdefault("lib", [])
         results["lib"].extend(
@@ -1236,41 +1237,48 @@ def _format_help_text(description):
     return "\n".join(formatted_lines)
 
 
-def _get_rule_help(default: oslo_policy.policy._BaseRule) -> str:
-    text: str = f'"{default.name}": "{default.check_str}"\n'
+def _get_rule_help(
+    rule: oslo_policy.policy._BaseRule,
+    rule_operations: typing.Optional[list[dict]] = None,
+) -> str:
+    text: str = f'"{rule.name}": "{rule.check_str}"\n'
     op = ""
-    if hasattr(default, "operations"):
-        for operation in default.operations:
-            if operation["method"] and operation["path"]:
-                op += "# {method}  {path}\n".format(
-                    method=operation["method"], path=operation["path"]
-                )
+    for operation in getattr(rule, "operations", rule_operations or []):
+        if operation["method"] and operation["path"]:
+            op += "# {method}  {path}\n".format(
+                method=operation["method"], path=operation["path"]
+            )
     intended_scope = ""
-    if getattr(default, "scope_types", None) is not None:
+    if getattr(rule, "scope_types", None) is not None:
         intended_scope = (
-            "# Intended scope(s): " + ", ".join(default.scope_types) + "\n"
+            "# Intended scope(s): " + ", ".join(rule.scope_types) + "\n"
         )
     comment = "#"  # if comment_rule else ''
     text = f"{op}{intended_scope}{comment}{text}\n"
-    if default.description:
-        text = _format_help_text(default.description) + "\n" + text
+    if rule.description:
+        text = _format_help_text(rule.description) + "\n" + text
 
     return text
 
 
-def _generate_opa_policy(namespace, output_dir=None):
+def _generate_opa_policy(conf):
     """Generate a OPA policies.
 
     This takes all registered policies and merges them with what's defined in
     a policy file and outputs the result. That result is the effective policy
     that will be honored by policy checks.
 
-    :param output_file: The path of a file to output to. stdout used if None.
+    :param conf: Configuration options.
     """
+    namespace = conf.namespace
+    output_dir = conf.output_dir
+    policy_file = conf.policy_file
     generate_policy_test: bool = True
     enforcer = _get_enforcer(namespace)
     # Ensure that files have been parsed
-    enforcer.load_rules()
+    if policy_file:
+        enforcer.policy_file = policy_file
+    enforcer.load_rules(force_reload=True)
 
     file_rules = [
         policy.RuleDefault(name, default.check_str)
@@ -1289,15 +1297,21 @@ def _generate_opa_policy(namespace, output_dir=None):
     converted_rules: dict[str, BaseOpaCheck] = {}
     for section in sorted(policies.keys()):
         rule_defaults = policies[section]
-        for rule_default in rule_defaults:
+        for default_rule in rule_defaults:
+            if default_rule.name in enforcer.file_rules:
+                rule = enforcer.file_rules[default_rule.name]
+            else:
+                rule = default_rule
+
             # if rule_default.deprecated_since:
             #    continue
             _translate_default_rule(
-                rule_default,
+                rule,
                 opa_policies,
                 converted_rules,
                 opa_test_policies,
                 namespace=namespace,
+                rule_operations=getattr(default_rule, "operations", None),
             )
 
     lib_output = None
@@ -1327,7 +1341,9 @@ def _generate_opa_policy(namespace, output_dir=None):
             for opa_policy_rule in opa_policy:
                 import_match = IMPORT_REGEX.match(opa_policy_rule)
                 if namespace == "glance":
-                    opa_policy_rule = opa_policy_rule.replace("member_id", "member")
+                    opa_policy_rule = opa_policy_rule.replace(
+                        "member_id", "member"
+                    )
                 output.write(opa_policy_rule)
                 output.write("\n")
             if output != sys.stdout:
@@ -1349,7 +1365,9 @@ def _generate_opa_policy(namespace, output_dir=None):
                 num: int = 1
                 for opa_policy_rule_test in tests:
                     if namespace == "glance":
-                        opa_policy_rule_test = opa_policy_rule_test.replace("member_id", "member")
+                        opa_policy_rule_test = opa_policy_rule_test.replace(
+                            "member_id", "member"
+                        )
                     output.write(opa_policy_rule_test)
                     output.write("\n")
                     num += 1
@@ -1513,4 +1531,5 @@ def generate_opa_policy(args=None):
     conf.register_cli_opts(GENERATOR_OPTS + ENFORCER_OPTS)
     conf.register_opts(GENERATOR_OPTS + ENFORCER_OPTS)
     conf(args)
-    _generate_opa_policy(conf.namespace, conf.output_dir)
+    _generate_opa_policy(conf)
+    # conf.namespace, conf.output_dir)

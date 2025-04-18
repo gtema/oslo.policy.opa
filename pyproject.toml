@@ -34,11 +34,10 @@ generate = [
   "nova",
   "octavia",
 ]
-test = ["pytest", "requests-mock"]
 
 [dependency-groups]
 dev = [
-  "pytest>=8,<9"
+  "pytest>=8,<9", "requests-mock", "fixtures"
 ]
 
 [build-system]
