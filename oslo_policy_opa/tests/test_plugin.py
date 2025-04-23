@@ -67,6 +67,66 @@ def test_execute_json(requests_mock, config):
     assert res == True
 
 
+def test_execute_json_neutron_dict_keys(requests_mock, config):
+    """Test with target containing dict_keys (as used by Neutron)"""
+    check = opa.OPACheck("opa", "testrule")
+    requests_mock.post(
+        "http://localhost:8181/v1/data/testrule/allow",
+        additional_matcher=lambda r: r.json()
+        == {
+            "input": {
+                "target": {
+                    "foo": "bar",
+                    "attributes_to_update": ["foo", "baz"],
+                },
+                "credentials": {"project_id": "pid"},
+            }
+        },
+        json={"result": True},
+    )
+    default_rule = _checks.TrueCheck()
+    enforcer = policy.Enforcer(config, default_rule=default_rule)
+
+    attrs = {"foo": "bar", "baz": "foo"}
+    res = check(
+        {"foo": "bar", "attributes_to_update": attrs.keys()},
+        {"project_id": "pid"},
+        enforcer,
+        None,
+    )
+    assert res == True
+
+
+def test_execute_json_neutron_dict_values(requests_mock, config):
+    """Test with target containing dict_keys"""
+    check = opa.OPACheck("opa", "testrule")
+    requests_mock.post(
+        "http://localhost:8181/v1/data/testrule/allow",
+        additional_matcher=lambda r: r.json()
+        == {
+            "input": {
+                "target": {
+                    "foo": "bar",
+                    "attributes_to_update": ["bar", "foo"],
+                },
+                "credentials": {"project_id": "pid"},
+            }
+        },
+        json={"result": True},
+    )
+    default_rule = _checks.TrueCheck()
+    enforcer = policy.Enforcer(config, default_rule=default_rule)
+
+    attrs = {"foo": "bar", "baz": "foo"}
+    res = check(
+        {"foo": "bar", "attributes_to_update": attrs.values()},
+        {"project_id": "pid"},
+        enforcer,
+        None,
+    )
+    assert res == True
+
+
 def test_execute_glance(requests_mock, config):
     """Test proper dealing with Glance ImageTarget"""
     check = opa.OPACheck("opa", "testrule")

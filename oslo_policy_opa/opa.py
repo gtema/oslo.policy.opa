@@ -10,6 +10,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import collections
 import concurrent.futures
 import contextlib
 import copy
@@ -18,6 +19,7 @@ import logging
 import os
 import requests
 import time
+import typing as ty
 
 import oslo_config
 from oslo_policy import _checks
@@ -94,26 +96,34 @@ class OPACheck(_checks.Check):
 
     @staticmethod
     def _construct_payload(creds, current_rule, enforcer, target):
-        # Convert instances of object() in target temporarily to
-        # empty dict to avoid circular reference detection
-        # errors in jsonutils.dumps().
+        # Access whatever the target is a dictionary (iterate over attributes)
+        # and copy those attributes which are known to be serializable.
+        # Otherwise chance is very high an exception will be thrown that
+        # certain attribute can not be pickled.
         #
         # Glance uses weird object
         # (https://opendev.org/openstack/glance/src/branch/master/glance/api/policy.py)
         # as the target which cannot be copied. If ever a target is not a
         # dictionary iterate over the target (which is similar to what
         # oslo.policy would do) and use the result as the key to use.
-        if not isinstance(target, dict):
-            temp_target = {k: copy.deepcopy(target[k]) for k in target}
-        else:
-            temp_target = copy.deepcopy(target)
-        for key in target.keys():
-            element = target.get(key)
-            if type(element) is object or not (
-                isinstance(element, (str, int, float, bool, list, tuple, dict))
-                or element is None
+        #
+        # Neutron passes `attributes_to_update: dict.keys()` which also fail
+        # serialization
+        temp_target: dict[str, ty.Any] = {}
+        for attr in target:
+            if (
+                isinstance(
+                    target[attr], (str, int, float, bool, list, tuple, dict)
+                )
+                or target[attr] is None
             ):
-                temp_target[key] = {}
+                temp_target[attr] = copy.deepcopy(target[attr])
+            elif isinstance(target[attr], (collections.abc.KeysView, collections.abc.ValuesView)):
+                temp_target[attr] = list(target[attr])
+            else:
+                LOG.warn(
+                    f"Ignoring attribute {attr} with value {target[attr]} since it has unserializable type {type(target[attr])}"
+                )
         # NOTE(gtema): Octavia uses `oslo.context:to_policy_values` which
         # returns `_DeprecatedPolicyValues`, which in turn is
         # `collections.abc.MutableMapping`. Treat it similarly to the target
