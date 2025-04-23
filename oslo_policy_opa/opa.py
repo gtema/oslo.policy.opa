@@ -114,7 +114,15 @@ class OPACheck(_checks.Check):
                 or element is None
             ):
                 temp_target[key] = {}
-        json = {"input": {"target": temp_target, "credentials": creds}}
+        # NOTE(gtema): Octavia uses `oslo.context:to_policy_values` which
+        # returns `_DeprecatedPolicyValues`, which in turn is
+        # `collections.abc.MutableMapping`. Treat it similarly to the target
+        # object and explicitly access it as a dictionary
+        if not isinstance(creds, dict):
+            temp_creds = {k: copy.deepcopy(creds[k]) for k in creds}
+        else:
+            temp_creds = copy.deepcopy(creds)
+        json = {"input": {"target": temp_target, "credentials": temp_creds}}
         return json
 
 

@@ -15,6 +15,7 @@ import os
 import pytest
 from pathlib import Path
 import tempfile
+import typing as ty
 
 from oslo_config import cfg
 from oslo_config import fixture as config
@@ -148,4 +149,77 @@ def test_execute_glance(requests_mock, config):
         enforcer,
         None,
     )
+    assert res == True
+
+
+def test_credentials_mutablemapping(requests_mock, config):
+    """Test proper dealing with Glance ImageTarget"""
+    check = opa.OPACheck("opa", "testrule")
+    requests_mock.post(
+        "http://localhost:8181/v1/data/testrule/allow",
+        additional_matcher=lambda r: r.json()
+        == {
+            "input": {
+                "target": {"foo": "bar", "bar": None},
+                "credentials": {"project_id": "pid"},
+            }
+        },
+        json={"result": True},
+    )
+    default_rule = _checks.TrueCheck()
+    enforcer = policy.Enforcer(config, default_rule=default_rule)
+
+    class Creds(abc.MutableMapping):
+        def __init__(self, data: dict[str, ty.Any]):
+            self._data = data
+            self._deprecated: dict[str, ty.Any] = {}
+
+        def __getitem__(self, k: str) -> ty.Any:
+            try:
+                return self._data[k]
+            except KeyError:
+                pass
+
+            try:
+                val = self._deprecated[k]
+            except KeyError:
+                pass
+            else:
+                warnings.warn(
+                    "Policy enforcement is depending on the value of "
+                    f"{k}. This key is deprecated. Please update your "
+                    "policy file to use the standard policy values.",
+                    DeprecationWarning,
+                )
+                return val
+
+            raise KeyError(k)
+
+        def __setitem__(self, k: str, v: ty.Any) -> None:
+            self._deprecated[k] = v
+
+        def __delitem__(self, k: str) -> None:
+            del self._deprecated[k]
+
+        def __iter__(self) -> ty.Iterator[ty.Any]:
+            return iter(self._dict)
+
+        def __len__(self) -> int:
+            return len(self._dict)
+
+        def __str__(self) -> str:
+            return self._dict.__str__()
+
+        def __repr__(self) -> str:
+            return self._dict.__repr__()
+
+        @property
+        def _dict(self) -> dict[str, ty.Any]:
+            d = self._deprecated.copy()
+            d.update(self._data)
+            return d
+
+    c = Creds({"project_id": "pid"})
+
+    res = check({"foo": "bar", "bar": None}, c, enforcer, None)
     assert res == True

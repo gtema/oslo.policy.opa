@@ -58,7 +58,7 @@ ENFORCER_OPTS = [
     cfg.StrOpt(
         "policy-file",
         help="Optional policy.yaml file to use as a source of policy"
-            "customization (full path)",
+        "customization (full path)",
     ),
 ]
 
