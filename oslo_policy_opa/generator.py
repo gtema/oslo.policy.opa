@@ -64,10 +64,8 @@ ENFORCER_OPTS = [
 
 
 def normalize_name(name: str) -> str:
-    if name == "default":
-        return "dflt"
-    else:
-        return name.translate(str.maketrans({":": "_", "-": "_", "*": "any"}))  # type: ignore
+    name = name.replace("default", "dflt")
+    return name.translate(str.maketrans({":": "_", "-": "_", "*": "any"}))  # type: ignore
 
 
 def deep_dict_set(path_parts: list[str], val) -> dict[str, typing.Any]:
@@ -474,7 +472,7 @@ class OrCheck(BaseOpaCheck):
     ) -> list[str]:
         tests: list[str] = []
         if oslo_rule_name:
-            policy_rule_name = oslo_rule_name.split(":")[-1]
+            policy_rule_name = normalize_name(oslo_rule_name.split(":")[-1])
             rule_name = self.get_opa_incremental_rule_name()
             test_datas = self.get_opa_policy_test_data(rules, oslo_rule_name)
             for i, test_data in enumerate(test_datas):
@@ -1349,7 +1347,7 @@ def _generate_opa_policy(conf):
                 output = sys.stdout
 
             output.write(
-                f"package {rule.replace(':', '.').replace('-', '_')}\n\n"
+                f"package {normalize_name(rule.replace(':', '.').replace('-', '_'))}\n\n"
             )
             if "lib." in "".join(opa_policy):
                 output.write(f"import data.lib\n\n")
