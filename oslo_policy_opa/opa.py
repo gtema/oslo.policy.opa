@@ -31,7 +31,9 @@ LOG = logging.getLogger(__name__)
 
 
 def normalize_name(name: str) -> str:
-    return name.translate(str.maketrans({":": "/", "-": "_"}))
+    return name.translate(
+        str.maketrans({":": "/", "-": "_"})  # type: ignore
+    )
 
 
 class OPACheck(_checks.Check):
@@ -118,7 +120,10 @@ class OPACheck(_checks.Check):
                 or target[attr] is None
             ):
                 temp_target[attr] = copy.deepcopy(target[attr])
-            elif isinstance(target[attr], (collections.abc.KeysView, collections.abc.ValuesView)):
+            elif isinstance(
+                target[attr],
+                (collections.abc.KeysView, collections.abc.ValuesView),
+            ):
                 temp_target[attr] = list(target[attr])
             else:
                 LOG.warn(
@@ -168,7 +173,7 @@ class OPAFilter(OPACheck):
 
         timeout = getattr(enforcer.conf.oslo_policy, "remote_timeout", 1)
 
-        results = []
+        # results: ty.Iterator[ty.Any] = []  # type: ignore
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             url = "/".join(
                 [

@@ -98,17 +98,17 @@ Policy language
   package identity.create_project
 
   import data.lib
-  
+
   # Create project.
   # POST  /v3/projects
   # Intended scope(s): system, domain, project
   #"identity:create_project": "(rule:admin_required) or (role:manager and domain_id:%(target.project.domain_id)s)"
-  
-  
+
+
   allow if {
     lib.admin_required
   }
-  
+
   allow if {
     lib.manager_and_domain_id_project_domain_id
   }
@@ -252,8 +252,8 @@ Policy `list_roles` provided above can be tested simulating different inputs:
    }
 
    test_direct_assignment if {
-     list_roles.allow 
-       with input as {"credentials": {"user_id": "foo"}} 
+     list_roles.allow
+       with input as {"credentials": {"user_id": "foo"}}
        with data.assignments as {"list_roles": {"foo": {}}}
    }
 
@@ -289,7 +289,7 @@ that allows better efficiency of the policy evaluation. Instead of evaluating
 whether the record can be accessed by the calling user followed by additional
 checks for every attribute of the filtered records a single call can be done to
 the OpenPolicyAgent to filter the record and all fields in one operation. This
-is supported by the `opa_filter` oslo_policy rule. 
+is supported by the `opa_filter` oslo_policy rule.
 
 .. code-block::
 

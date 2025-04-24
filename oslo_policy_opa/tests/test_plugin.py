@@ -16,9 +16,9 @@ import pytest
 from pathlib import Path
 import tempfile
 import typing as ty
+import warnings
 
 from oslo_config import cfg
-from oslo_config import fixture as config
 from oslo_policy import policy
 from oslo_policy import _checks
 from oslo_policy import opts as oslo_opts
