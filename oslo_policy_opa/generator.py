@@ -67,7 +67,7 @@ def normalize_name(name: str) -> str:
     if name == "default":
         return "dflt"
     else:
-        return name.translate(str.maketrans({":": "_", "-": "_", "*": "any"}))
+        return name.translate(str.maketrans({":": "_", "-": "_", "*": "any"}))  # type: ignore
 
 
 def deep_dict_set(path_parts: list[str], val) -> dict[str, typing.Any]:
@@ -78,7 +78,9 @@ def deep_dict_set(path_parts: list[str], val) -> dict[str, typing.Any]:
     elif len(path_parts) == 1:
         result[path_parts[0]] = val
     else:
-        raise NotImplementedError(f"deep set invoked with unclear path {path}")
+        raise NotImplementedError(
+            f"deep set invoked with unclear path {path_parts}"
+        )
     return result
 
 
@@ -234,6 +236,14 @@ class BaseOpaCheck:
     ) -> list[str]:
         raise NotImplementedError()
 
+    def get_opa_policy_test_data(
+        self,
+        rules: dict[str, "BaseOpaCheck"],
+        rule_name: str,
+        reverse: bool = False,
+    ) -> list[dict]:
+        raise NotImplementedError()
+
     @abc.abstractmethod
     def get_opa_incremental_rule_name(self) -> str:
         raise NotImplementedError()
@@ -281,7 +291,7 @@ class FalseCheck(BaseOpaCheck):
 
     def get_opa_policy_tests(
         self,
-        rules: dict[str, list[str]],
+        rules: dict[str, "BaseOpaCheck"],
         rule_name: typing.Optional[str] = None,
     ) -> list[str]:
         return []
@@ -352,18 +362,19 @@ class AndCheck(BaseOpaCheck):
         oslo_rule_name: typing.Optional[str] = None,
     ) -> list[str]:
         tests: list[str] = []
-        policy_rule_name = oslo_rule_name.split(":")[-1]
-        rule_name = self.get_opa_incremental_rule_name()
-        test_datas = self.get_opa_policy_test_data(rules, oslo_rule_name)
-        for i, test_data in enumerate(test_datas):
-            with_parts = []
-            for data_key, data_val in test_data.items():
-                with_parts.append(
-                    f"with {data_key} as {jsonutils.dumps(data_val)}"
+        if oslo_rule_name:
+            policy_rule_name = oslo_rule_name.split(":")[-1]
+            rule_name = self.get_opa_incremental_rule_name()
+            test_datas = self.get_opa_policy_test_data(rules, oslo_rule_name)
+            for i, test_data in enumerate(test_datas):
+                with_parts = []
+                for data_key, data_val in test_data.items():
+                    with_parts.append(
+                        f"with {data_key} as {jsonutils.dumps(data_val)}"
+                    )
+                tests.append(
+                    f"test_{rule_name}_{i} if {normalize_name(policy_rule_name)}.allow {' '.join(with_parts)}"
                 )
-            tests.append(
-                f"test_{rule_name}_{i} if {normalize_name(policy_rule_name)}.allow {' '.join(with_parts)}"
-            )
         return tests
 
     def get_opa_policy_test_data(
@@ -457,21 +468,24 @@ class OrCheck(BaseOpaCheck):
         return rule_names
 
     def get_opa_policy_tests(
-        self, rules: dict[str, BaseOpaCheck], oslo_rule_name: str
+        self,
+        rules: dict[str, "BaseOpaCheck"],
+        oslo_rule_name: typing.Optional[str] = None,
     ) -> list[str]:
         tests: list[str] = []
-        policy_rule_name = oslo_rule_name.split(":")[-1]
-        rule_name = self.get_opa_incremental_rule_name()
-        test_datas = self.get_opa_policy_test_data(rules, oslo_rule_name)
-        for i, test_data in enumerate(test_datas):
-            with_parts = []
-            for data_key, data_val in test_data.items():
-                with_parts.append(
-                    f"with {data_key} as {jsonutils.dumps(data_val)}"
+        if oslo_rule_name:
+            policy_rule_name = oslo_rule_name.split(":")[-1]
+            rule_name = self.get_opa_incremental_rule_name()
+            test_datas = self.get_opa_policy_test_data(rules, oslo_rule_name)
+            for i, test_data in enumerate(test_datas):
+                with_parts = []
+                for data_key, data_val in test_data.items():
+                    with_parts.append(
+                        f"with {data_key} as {jsonutils.dumps(data_val)}"
+                    )
+                tests.append(
+                    f"test_{rule_name}_{i} if {policy_rule_name}.allow {' '.join(with_parts)}"
                 )
-            tests.append(
-                f"test_{rule_name}_{i} if {policy_rule_name}.allow {' '.join(with_parts)}"
-            )
         return tests
 
     def get_opa_policy_test_data(
@@ -555,22 +569,23 @@ class RuleCheck(BaseOpaCheck):
         rule_name: typing.Optional[str] = None,
     ) -> list[str]:
         tests = []
-        policy_rule_name = normalize_name(rule_name.split(":")[-1])
-        referred_rule = rules.get(self.check.match)
-        if referred_rule:
-            test_datas = referred_rule.get_opa_policy_test_data(
-                rules, rule_name
-            )
-            if test_datas:
-                for i, test_data in enumerate(test_datas):
-                    with_parts = []
-                    for data_key, data_val in test_data.items():
-                        with_parts.append(
-                            f"with {data_key} as {jsonutils.dumps(data_val)}"
+        if rule_name:
+            policy_rule_name = normalize_name(rule_name.split(":")[-1])
+            referred_rule = rules.get(self.check.match)
+            if referred_rule:
+                test_datas = referred_rule.get_opa_policy_test_data(
+                    rules, rule_name
+                )
+                if test_datas:
+                    for i, test_data in enumerate(test_datas):
+                        with_parts = []
+                        for data_key, data_val in test_data.items():
+                            with_parts.append(
+                                f"with {data_key} as {jsonutils.dumps(data_val)}"
+                            )
+                        tests.append(
+                            f"test_{policy_rule_name}_{i} if {policy_rule_name}.allow {' '.join(with_parts)}"
                         )
-                    tests.append(
-                        f"test_{policy_rule_name}_{i} if {policy_rule_name}.allow {' '.join(with_parts)}"
-                    )
         return tests
 
     def get_opa_policy_test_data(
@@ -826,24 +841,21 @@ class NeutronOwnerCheck(BaseOpaCheck):
         rule_name: str,
         reverse: bool = False,
     ) -> list[dict[str, typing.Any]]:
-        try:
-            if ":" in self.target_field:
-                res, field = self.target_field.split(":")
-                res_field = f"{res}_id"
-                if res.startswith("ext_parent_"):
-                    res = res[11:]
-                if res != "ext_parent":
-                    return [
-                        {
-                            "input": {
-                                "credentials": {self.check.kind: "bar"},
-                                "target": {res_field: "foo"},
-                            },
-                            f"data.lib.get_{res}": {field: "bar"},
-                        }
-                    ]
-        except Exception:
-            pass
+        if hasattr(self, "target_field") and ":" in self.target_field:
+            res, field = self.target_field.split(":")
+            res_field = f"{res}_id"
+            if res.startswith("ext_parent_"):
+                res = res[11:]
+            if res != "ext_parent":
+                return [
+                    {
+                        "input": {
+                            "credentials": {self.check.kind: "bar"},
+                            "target": {res_field: "foo"},
+                        },
+                        f"data.lib.get_{res}": {field: "bar"},
+                    }
+                ]
         return [{"input": {}}]
 
 
@@ -974,6 +986,7 @@ class NeutronFieldCheck(BaseOpaCheck):
         ):
             return [{"input": {"target": {"device_owner": "network:foo"}}}]
         else:
+            value: typing.Any
             try:
                 right = ast.literal_eval(self.value)
                 if isinstance(right, bool):
@@ -1026,7 +1039,9 @@ class NotCheck(BaseOpaCheck):
         return "not_" + self.rule.get_opa_incremental_rule_name()
 
     def get_opa_policy_tests(
-        self, rules: dict[str, BaseOpaCheck], rule_name: typing.Optional[str]
+        self,
+        rules: dict[str, BaseOpaCheck],
+        rule_name: typing.Optional[str] = None,
     ) -> list[str]:
         return []
 
@@ -1128,7 +1143,7 @@ def _translate_default_rule(
     if not opa_rule:
         opa_rule = _convert_oslo_policy_check_to_opa_check(rule_check)
     converted_rules[rule.name] = opa_rule
-    lib_part_rules = {}
+    lib_part_rules: dict[str, list[str]] = {}
     opa_part_rules = opa_rule.get_opa_policy(lib_part_rules)
     # opa_rule_tests = opa_rule.get_opa_policy_tests(policy_tests, rule.name)
     opa_rule_tests = opa_rule.get_opa_policy_tests(converted_rules, rule.name)
