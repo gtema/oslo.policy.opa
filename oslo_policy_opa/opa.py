@@ -2,7 +2,7 @@
 # not use this file except in compliance with the License. You may obtain
 # a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -16,14 +16,10 @@ import contextlib
 import copy
 from functools import partial
 import logging
-import os
 import requests
-import time
 import typing as ty
 
-import oslo_config
 from oslo_policy import _checks
-import oslo_log
 
 from oslo_policy_opa import opts
 
@@ -63,11 +59,9 @@ class OPACheck(_checks.Check):
         )
         json = self._construct_payload(creds, current_rule, enforcer, target)
         try:
-            start = time.time()
             with contextlib.closing(
                 requests.post(url, json=json, timeout=timeout)
             ) as r:
-                end = time.time()
                 if r.status_code == 200:
                     result = r.json().get("result")
                     if isinstance(result, bool):
