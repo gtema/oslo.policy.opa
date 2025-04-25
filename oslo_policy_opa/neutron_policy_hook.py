@@ -19,7 +19,6 @@ from oslo_policy import policy as oslo_policy
 
 from oslo_policy_opa import opa
 
-from neutron._i18n import _
 from neutron import manager  # type: ignore
 from neutron.pecan_wsgi import constants as pecan_constants
 from neutron.pecan_wsgi.hooks import utils
