@@ -196,6 +196,21 @@ class AndCheck(BaseOpaCheck):
                         ]
                     )
 
+            elif (
+                isinstance(rule, GenericCheck)
+                or isinstance(rule, NotCheck)
+                and isinstance(rule.rule, GenericCheck)
+            ):
+                # Generic check may return multiple rules for `"foo":%(a.b)` so
+                # we unwrap it into the "OR".
+                incremental_rule_name = rule.get_opa_incremental_rule_name()
+                results.append(incremental_rule_name)
+                if incremental_rule_name not in global_results:
+                    res = global_results.setdefault(incremental_rule_name, [])
+                    for subrule in opa_rule_repr:
+                        res.append(
+                            f"#{rule}\n{incremental_rule_name} if {{\n  {subrule}\n}}"
+                        )
             else:
                 incremental_rule_name = rule.get_opa_incremental_rule_name()
                 results.append(incremental_rule_name)
@@ -247,16 +262,15 @@ class AndCheck(BaseOpaCheck):
         for rule in self.rules:
             rule_name = rule.get_opa_incremental_rule_name()
             test_parts = rule.get_opa_policy_test_data(rules, rule_name)
-            if isinstance(rule, AndCheck):
-                # A and (B and C) => [A+B+C]
-                for test in test_parts:
-                    test_data = common.deep_merge_dicts(test_data, test)
 
-            elif isinstance(rule, OrCheck):
-                # A and (B or C) => [A+B, A+C] - need to calculate cartesian product once rest is processed
+            if len(test_parts) > 1:
+                # Rule returned multiple possible input data (i.e. A and (B or
+                # C) => [A+B, A+C]) - need to calculate cartesian product once
+                # rest is processed
                 tests.append(test_parts)
 
             else:
+                # Rule returned a single data set. Merge it into the test_data
                 # A and B => [A+B]
                 for test in test_parts:
                     test_data = common.deep_merge_dicts(test_data, test)
@@ -357,23 +371,7 @@ class OrCheck(BaseOpaCheck):
         tests: list[typing.Any] = []
         for rule in self.rules:
             rule_name = rule.get_opa_incremental_rule_name()
-            test_parts = rule.get_opa_policy_test_data(rules, rule_name)
-            test_data: dict = {}
-            if isinstance(rule, AndCheck):
-                # A or (B and C) => [A, B+C]
-                for test in test_parts:
-                    test_data = common.deep_merge_dicts(test_data, test)
-                tests.append(test_data)
-            elif isinstance(rule, OrCheck):
-                # A or (B or C) => [A, B, C]
-                for test in test_parts:
-                    tests.append(test)
-
-            elif not isinstance(rule, OrCheck):
-                # A or B => [A, B]
-                for test in test_parts:
-                    # test_data = common.deep_merge_dicts(test_data, test_part)
-                    tests.append(test)
+            tests.extend(rule.get_opa_policy_test_data(rules, rule_name))
 
         return tests
 
@@ -457,7 +455,7 @@ class RuleCheck(BaseOpaCheck):
         referred_rule = rules.get(self.check.match)
         if referred_rule:
             test_data = referred_rule.get_opa_policy_test_data(
-                rules, rule_name
+                rules, rule_name, reverse=reverse
             )
             return test_data
         # Note(gtema): when generating policies for Neutron stadium we do not
@@ -488,10 +486,15 @@ class GenericCheck(BaseOpaCheck):
     def get_opa_policy(
         self, global_results: dict[str, list[str]]
     ) -> list[str]:
-        right = self.check.match
-        check: str = ""
+        right: str = self.check.match
+        right_path: typing.Optional[str] = None
+        checks: list[str] = []
         if right.startswith("%(") and right.endswith(")s"):
-            right = f"input.target.{right[2:-2]}"
+            right_path = right[2:-2]
+            if ":" in right_path:
+                right = f'input.target["{right_path}"]'
+            else:
+                right = f"input.target.{right_path}"
         else:
             # This is a string so we need to figure out what is it: a string,
             # an int, bool, None, ...
@@ -508,28 +511,51 @@ class GenericCheck(BaseOpaCheck):
                     left = ""
                 else:
                     left = "not "
-                check = f"{left}{right}"
+                checks.append(f"{left}{right}")
+                if right_path:
+                    if "." in right_path:
+                        checks.append(f'{left}input.target["{right_path}"]')
             elif isinstance(left, int):
-                check = f"{left} == {right}"
+                checks.append(f"{left} == {right}")
+                if right_path:
+                    if "." in right_path:
+                        checks.append(
+                            f'{left} == input.target["{right_path}"]'
+                        )
             elif isinstance(left, str):
-                check = f'"{left}" == {right}'
+                checks.append(f'"{left}" == {right}')
+                if right_path:
+                    if "." in right_path:
+                        checks.append(
+                            f'"{left}" == input.target["{right_path}"]'
+                        )
             elif left is None:
-                check = f"is_null({right})"
+                checks.append(f"is_null({right})")
+                if right_path:
+                    if "." in right_path:
+                        checks.append(f'is_null(input.target["{right_path}"])')
             else:
                 raise NotImplementedError(
                     f"translation of {self.check.kind} is not supported yet"
                 )
         except ValueError:
             if right is None:
-                check = f"is_null(input.credentials.{self.check.kind})"
+                checks.append(f"is_null(input.credentials.{self.check.kind})")
             elif isinstance(right, bool):
                 if right:
-                    check = f"input.credentials.{self.check.kind}"
+                    checks.append(f"input.credentials.{self.check.kind}")
                 else:
-                    check = f"not input.credentials.{self.check.kind}"
+                    checks.append(f"not input.credentials.{self.check.kind}")
             else:
-                check = f"input.credentials.{self.check.kind} == {right}"
-        return [check]
+                checks.append(
+                    f"input.credentials.{self.check.kind} == {right}"
+                )
+                if right_path:
+                    if "." in right_path:
+                        checks.append(
+                            f'input.credentials.{self.check.kind} == input.target["{right_path}"]'
+                        )
+        return checks
 
     def get_opa_incremental_rule_name(self) -> str:
         rule_name: str
@@ -571,13 +597,13 @@ class GenericCheck(BaseOpaCheck):
         rule_name: str,
         reverse: bool = False,
     ) -> list[dict[str, typing.Any]]:
-        result: dict
+        results: list[dict] = []
         right = self.check.match
-        right_is_path = False
+        right_path: typing.Optional[str] = None
         if right.startswith("%(") and right.endswith(")s"):
             # right side is a path
-            right = f"target.{right[2:-2]}"
-            right_is_path = True
+            right_path = right[2:-2]
+            right = f"target.{right_path}"
         else:
             # This is a literal
             try:
@@ -601,24 +627,42 @@ class GenericCheck(BaseOpaCheck):
             path = right
             value = left
             # result = {"credentials": deep_dict_set(path.split("."), value)}
-            result = common.deep_dict_set(path.split("."), value)
+            results.append(
+                {"input": common.deep_dict_set(path.split("."), value)}
+            )
+            if right_path and "." in right_path:
+                results.append({"input": {"target": {right_path: value}}})
+                LOG.info(f"New test data for {self} are {results}")
+
         except ValueError:
             # left is a path
             path = self.check.kind
-            if not right_is_path:
+            if not right_path:
                 # right side is a literal
                 value = right
-                result = {
-                    "credentials": common.deep_dict_set(path.split("."), value)
-                }
+                results.append(
+                    {
+                        "input": {
+                            "credentials": common.deep_dict_set(
+                                path.split("."), value
+                            )
+                        }
+                    }
+                )
             else:
                 value = "foo"
                 result_left = {
                     "credentials": common.deep_dict_set(path.split("."), value)
                 }
                 result_right = common.deep_dict_set(right.split("."), value)
-                result = common.deep_merge_dicts(result_left, result_right)
-        return [{"input": result}]
+                results.append(
+                    {
+                        "input": common.deep_merge_dicts(
+                            result_left, result_right
+                        )
+                    }
+                )
+        return results
 
 
 class NeutronOwnerCheck(BaseOpaCheck):
@@ -885,21 +929,17 @@ class NotCheck(BaseOpaCheck):
         return ""
 
     def get_opa_policy(self, global_results: dict[str, list[str]]):
+        results: list[str] = []
         if not isinstance(self.rule, AndCheck) and not isinstance(
             self.rule, OrCheck
         ):
-            opa_rule_repr = self.rule.get_opa_policy(global_results)
-            if len(opa_rule_repr) == 1:
-                result = f"not {opa_rule_repr[0]}"
-            else:
-                raise NotImplementedError(
-                    "Negation base returned multiple rules"
-                )
+            for opa_rule_repr in self.rule.get_opa_policy(global_results):
+                results.append(f"not {opa_rule_repr}")
         else:
             raise NotImplementedError(
                 "not and/or is not supported yet", self.rule
             )
-        return [result]
+        return results
 
     def get_opa_incremental_rule_name(self) -> str:
         return "not_" + self.rule.get_opa_incremental_rule_name()
