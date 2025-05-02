@@ -460,10 +460,12 @@ class RuleCheck(BaseOpaCheck):
                 rules, rule_name
             )
             return test_data
-        raise RuntimeError(
-            f"Cannot generate test data for {self} since the rule is not known"
-        )
+        # Note(gtema): when generating policies for Neutron stadium we do not
+        # have access to rules defined there
         return []
+        # raise RuntimeError(
+        #    f"Cannot generate test data for {self} since the rule is not known"
+        # )
 
 
 class GenericCheck(BaseOpaCheck):
