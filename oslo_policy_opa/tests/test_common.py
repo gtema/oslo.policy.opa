@@ -27,6 +27,15 @@ def test_deep_merge_dicts():
     ) == {"a": {"b": {"c": ["d", "e"]}}}
 
 
+def test_deep_merge_dicts_list():
+    assert common.deep_merge_dicts({"a": ["b", "c", "d"]}, {"a": ["e"]}) == {
+        "a": ["b", "c", "d", "e"]
+    }
+    assert common.deep_merge_dicts({"a": ["b", "c", "d"]}, {"a": ["b"]}) == {
+        "a": ["b", "c", "d"]
+    }
+
+
 def test_product():
     assert list(
         common.product([{"a": "b"}, {"c": "d"}], [{"e": "f"}, {"g": "h"}])

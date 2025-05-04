@@ -132,7 +132,7 @@ def _translate_default_rule(
         results.setdefault("lib", [])
         results["lib"].extend(
             [
-                f"{rule_name} {opa_rule.get_header()}  {rule}\n{opa_rule.get_footer()}\n"
+                f"{rule_name} {opa_rule.get_header()} {rule}\n{opa_rule.get_footer()}\n"
                 for rule in opa_part_rules
             ]
         )

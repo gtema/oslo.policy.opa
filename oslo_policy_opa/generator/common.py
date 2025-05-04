@@ -100,7 +100,7 @@ def deep_merge_dicts(dict1, dict2):
             and isinstance(result[key], list)
             and isinstance(value, list)
         ):
-            result[key] = result[key] + value
+            result[key] = sorted(set(result[key] + value))
         else:
             result[key] = value
     return result
