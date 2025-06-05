@@ -11,6 +11,7 @@
 # under the License.
 
 from collections import abc
+import datetime
 import os
 import pytest
 from pathlib import Path
@@ -61,8 +62,7 @@ def test_execute_json(requests_mock, config):
     default_rule = _checks.TrueCheck()
     enforcer = policy.Enforcer(config, default_rule=default_rule)
 
-    res = check({"foo": "bar"}, {"project_id": "pid"}, enforcer, None)
-    assert res == True
+    assert check({"foo": "bar"}, {"project_id": "pid"}, enforcer, None)
 
 
 def test_execute_json_neutron_dict_keys(requests_mock, config):
@@ -86,13 +86,12 @@ def test_execute_json_neutron_dict_keys(requests_mock, config):
     enforcer = policy.Enforcer(config, default_rule=default_rule)
 
     attrs = {"foo": "bar", "baz": "foo"}
-    res = check(
+    assert check(
         {"foo": "bar", "attributes_to_update": attrs.keys()},
         {"project_id": "pid"},
         enforcer,
         None,
     )
-    assert res == True
 
 
 def test_execute_json_neutron_dict_values(requests_mock, config):
@@ -116,13 +115,12 @@ def test_execute_json_neutron_dict_values(requests_mock, config):
     enforcer = policy.Enforcer(config, default_rule=default_rule)
 
     attrs = {"foo": "bar", "baz": "foo"}
-    res = check(
+    assert check(
         {"foo": "bar", "attributes_to_update": attrs.values()},
         {"project_id": "pid"},
         enforcer,
         None,
     )
-    assert res == True
 
 
 def test_execute_glance(requests_mock, config):
@@ -201,13 +199,16 @@ def test_execute_glance(requests_mock, config):
             for k, v in kwargs.items():
                 setattr(self, k, v)
 
-    res = check(
+    assert check(
         ImageTarget(target=Image(foo="bar")),
         {"project_id": "pid"},
         enforcer,
         None,
     )
-    assert res == True
+
+    assert check._construct_payload(
+        {}, None, enforcer, ImageTarget(target=Image(foo="bar"))
+    ) == {"input": {"credentials": {}, "target": {"bar": None, "foo": "bar"}}}
 
 
 def test_credentials_mutablemapping(requests_mock, config):
@@ -279,5 +280,49 @@ def test_credentials_mutablemapping(requests_mock, config):
 
     c = Creds({"project_id": "pid"})
 
-    res = check({"foo": "bar", "bar": None}, c, enforcer, None)
-    assert res == True
+    assert check({"foo": "bar", "bar": None}, c, enforcer, None)
+
+
+def test_construct_payload_datetime(config):
+    check = opa.OPACheck("opa", "testrule")
+    dt = datetime.datetime.now()
+    assert check._construct_payload(
+        creds={}, current_rule=None, enforcer=None, target={"date": dt}
+    ) == {"input": {"target": {"date": dt.isoformat()}, "credentials": {}}}
+
+
+def test_construct_payload_object():
+    check = opa.OPACheck("opa", "testrule")
+
+    class SOT(object):  # noqa
+        def __init__(self, orig_set):
+            if orig_set is None:
+                orig_set = set([])  # noqa
+            self.tags = orig_set
+
+        def __iter__(self, *args, **kwargs):
+            return self.tags.__iter__(*args, **kwargs)
+
+        def __len__(self, *args, **kwargs):
+            return self.tags.__len__(*args, **kwargs)
+
+        def __getattr__(self, name):
+            # Protect against deepcopy, which calls getattr. __getattr__
+            # is only called when an attribute is not "normal", so when
+            # self.tags is called, this is not.
+            if name == "tags":
+                try:
+                    return self.__getattribute__("tags")
+                except AttributeError:
+                    return None
+            return getattr(self.tags, name)
+
+    res = check._construct_payload(
+        creds={},
+        current_rule=None,
+        enforcer=None,
+        target={"tags": SOT(["a", "b"])},
+    )
+    assert {
+        "input": {"credentials": {}, "target": {"tags": ["a", "b"]}}
+    } == res

@@ -14,6 +14,7 @@ import collections
 import concurrent.futures
 import contextlib
 import copy
+import datetime
 from functools import partial
 import logging
 import requests
@@ -114,14 +115,36 @@ class OPACheck(_checks.Check):
                 or target[attr] is None
             ):
                 temp_target[attr] = copy.deepcopy(target[attr])
+            elif isinstance(target[attr], datetime.datetime):
+                # Cast datetime to iso format
+                temp_target[attr] = target[attr].isoformat()
             elif isinstance(
                 target[attr],
                 (collections.abc.KeysView, collections.abc.ValuesView),
             ):
                 temp_target[attr] = list(target[attr])
+            elif hasattr(target[attr], "__iter__"):
+                # There is an iterator access. Try going this way analyzing
+                # every item
+                try:
+                    subobj = []
+                    for sa in target[attr]:
+                        if (
+                            isinstance(
+                                sa, (str, int, float, bool, list, tuple, dict)
+                            )
+                            or target[attr] is None
+                        ):
+                            subobj.append(sa)
+                    temp_target[attr] = subobj
+                except Exception as e:  # noqa
+                    LOG.exception(e)
+                    pass
+
             else:
-                LOG.warn(
-                    f"Ignoring attribute {attr} with value {target[attr]} since it has unserializable type {type(target[attr])}"
+                LOG.warning(
+                    f"Ignoring attribute {attr} with value {target[attr]} "
+                    f"since it has unserializable type {type(target[attr])}"
                 )
         # NOTE(gtema): Octavia uses `oslo.context:to_policy_values` which
         # returns `_DeprecatedPolicyValues`, which in turn is
