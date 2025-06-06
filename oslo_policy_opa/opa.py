@@ -47,7 +47,7 @@ class OPACheck(_checks.Check):
             opts._register(enforcer.conf)
             self.opts_registered = True
 
-        timeout = getattr(enforcer.conf.oslo_policy, "remote_timeout", 1)
+        timeout = getattr(enforcer.conf.oslo_policy, "remote_timeout", 2)
 
         url = "/".join(
             [
@@ -160,7 +160,9 @@ class OPACheck(_checks.Check):
 
 def query_filter(json: dict, url: str, timeout: int):
     try:
-        with contextlib.closing(requests.post(url, json=json, timeout=1)) as r:
+        with contextlib.closing(
+            requests.post(url, json=json, timeout=timeout)
+        ) as r:
             if r.status_code == 200:
                 return r.json().get("result")
             else:
@@ -188,7 +190,7 @@ class OPAFilter(OPACheck):
             opts._register(enforcer.conf)
             self.opts_registered = True
 
-        timeout = getattr(enforcer.conf.oslo_policy, "remote_timeout", 1)
+        timeout = getattr(enforcer.conf.oslo_policy, "remote_timeout", 2)
 
         # results: ty.Iterator[ty.Any] = []  # type: ignore
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
