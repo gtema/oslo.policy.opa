@@ -81,15 +81,19 @@ class PolicyHook(neutron_policy_enforcement.PolicyHook):
             rule = policy.get_enforcer().rules.get(action)
             if rule and isinstance(rule, opa.OPAFilter):
                 # The rule explicitly wants to filter/sanitize results. For
-                # this we should rather invoke the OPA directly since oslo.policy
-                # expects checks to return only True/False. And while returnung a dict
-                # works in practice it is not future safe.
+                # this we should rather invoke the OPA directly since
+                # oslo.policy expects checks to return only True/False. And
+                # while returnung a dict works in practice it is not future
+                # safe.
                 resp = []
                 if isinstance(neutron_context, context.RequestContext):
                     creds = _map_context_attributes_into_creds(neutron_context)
                 else:
                     creds = neutron_context
-                resp = list(rule(to_process, creds, policy.get_enforcer()))
+                prepared_items = self._prepare_items_data(
+                    controller, collection, to_process
+                )
+                resp = list(rule(prepared_items, creds, policy.get_enforcer()))
                 if is_single and len(resp) == 0:
                     raise oslo_policy.PolicyNotAuthorized(rule, action, creds)
             else:
@@ -121,3 +125,33 @@ class PolicyHook(neutron_policy_enforcement.PolicyHook):
         if is_single:
             resp = resp[0]
         state.response.json = {key: resp}
+
+    def _prepare_items_data(self, controller, collection, items):
+        """Filter out attributes that should never appear in the response"""
+        attributes_to_exclude = []
+        # Determine attributes that should not be returned to the user
+        # independent from the policy based on the first item in the list
+        #
+        # NOTE: maybe it make sense to wrap it around and get list of visible
+        # attrs from the controller and filter the ones not in the list
+        if len(items) > 0:
+            for attr_name in list(items[0]):
+                if attr_name in ["project_id"]:
+                    continue
+                attr_data = controller.resource_info.get(attr_name)
+                if not (attr_data and attr_data["is_visible"]):
+                    attributes_to_exclude.append(attr_name)
+
+            if attributes_to_exclude:
+                res: list = []
+                for item in items:
+                    res.append(
+                        {
+                            k: v
+                            for k, v in item.items()
+                            if k not in attributes_to_exclude
+                        }
+                    )
+                return res
+
+        return items
