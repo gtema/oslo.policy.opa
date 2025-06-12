@@ -47,7 +47,11 @@ class OPACheck(_checks.Check):
             opts._register(enforcer.conf)
             self.opts_registered = True
 
-        timeout = getattr(enforcer.conf.oslo_policy, "remote_timeout", 2)
+        timeout = getattr(
+            enforcer.conf.oslo_policy,
+            "remote_timeout",
+            enforcer.conf.oslo_policy.opa_timeout,
+        )
 
         url = "/".join(
             [
@@ -76,7 +80,8 @@ class OPACheck(_checks.Check):
                     )
         except Exception as ex:
             LOG.error(
-                f"Exception during checking OPA {ex}. Fallback to the DocumentedRuleDefault"
+                f"Exception during checking OPA {ex}. Fallback to the "
+                "DocumentedRuleDefault"
             )
         # When any exception has happened during the communication or OPA
         # result processing we want to fallback to the default rule
@@ -178,7 +183,11 @@ class OPAFilter(OPACheck):
     """Oslo.policy ``opa_filter:`` check
 
     Invoke OPA for the authorization policy evaluation. It is expected that the
-    result is a dict with `allowed: BOOL` and `filtered: DICT_OF_FILTERED_ATTRIBUTES`.
+    result is a dict with `allowed: BOOL` and
+    `filtered: DICT_OF_FILTERED_ATTRIBUTES`.
+
+    :returns: Generator of entries that are allowed by OPA with "filtered"
+        content as the entity
     """
 
     opts_registered = False
@@ -190,10 +199,15 @@ class OPAFilter(OPACheck):
             opts._register(enforcer.conf)
             self.opts_registered = True
 
-        timeout = getattr(enforcer.conf.oslo_policy, "remote_timeout", 2)
+        timeout = getattr(
+            enforcer.conf.oslo_policy,
+            "remote_timeout",
+            enforcer.conf.oslo_policy.opa_timeout,
+        )
 
-        # results: ty.Iterator[ty.Any] = []  # type: ignore
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=enforcer.conf.oslo_policy.opa_filter_max_threads_count
+        ) as executor:
             url = "/".join(
                 [
                     enforcer.conf.oslo_policy.opa_url,
@@ -218,8 +232,3 @@ class OPAFilter(OPACheck):
                     filtered = result.get("filtered", {})
                     if filtered:
                         yield filtered
-
-    @staticmethod
-    def _construct_payload(creds, current_rule, enforcer, target):
-        json = {"input": {"target": target, "credentials": creds}}
-        return json

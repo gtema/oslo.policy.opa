@@ -23,9 +23,27 @@ _options = [
     cfg.StrOpt(
         "opa_url",
         help=_(
-            "Full URL of the OpenPolicyAgent instance including transport scheme"
+            "Full URL of the OpenPolicyAgent instance including transport "
+            "scheme."
         ),
-    )
+    ),
+    cfg.IntOpt(
+        "opa_timeout",
+        default=1,
+        help=_(
+            "Timeout to use to wait for OpenPolicyAgent to respond. It "
+            "behaves the same way as `remote_timeout` and added to make it"
+            "possible to configure the timeout on older OpenStack releases."
+        ),
+    ),
+    cfg.IntOpt(
+        "opa_filter_max_threads_count",
+        default=4,
+        help=_(
+            "Maximal count of threads used by the ThreadPoolExecutor to "
+            "parallelize opa_filter based rules."
+        ),
+    ),
 ]
 
 
