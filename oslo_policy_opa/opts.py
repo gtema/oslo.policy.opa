@@ -41,7 +41,8 @@ _options = [
         default=4,
         help=_(
             "Maximal count of threads used by the ThreadPoolExecutor to "
-            "parallelize opa_filter based rules."
+            "parallelize opa_filter based rules. Set to `0` to skip threading "
+            "and just process items selially."
         ),
     ),
 ]
