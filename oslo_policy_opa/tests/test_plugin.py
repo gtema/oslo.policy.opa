@@ -182,6 +182,68 @@ def test_execute_filter_json_neutron_dict_values(requests_mock, config):
     assert [{"foo": "bar"}, {"baz": "bar"}] == results
 
 
+def test_execute_filter_json_neutron_dict_values_no_threads(
+    requests_mock, config
+):
+    """Test with target containing dict_keys"""
+    check = opa.OPAFilter("opa_filter", "testrule")
+    config.set_override("opa_filter_max_threads_count", 0, group="oslo_policy")
+
+    requests_mock.post(
+        "http://localhost:8181/v1/data/testrule",
+        additional_matcher=lambda r: r.json()
+        == {
+            "input": {
+                "target": {
+                    "foo": "bar",
+                    "attributes_to_update": ["bar", "foo"],
+                },
+                "credentials": {"project_id": "pid"},
+            }
+        },
+        json={"result": {"allow": True, "filtered": {"foo": "bar"}}},
+    )
+    requests_mock.post(
+        "http://localhost:8181/v1/data/testrule",
+        additional_matcher=lambda r: r.json()
+        == {
+            "input": {
+                "target": {"baz": "bar", "ignore": "me"},
+                "credentials": {"project_id": "pid"},
+            }
+        },
+        json={"result": {"allow": True, "filtered": {"baz": "bar"}}},
+    )
+    requests_mock.post(
+        "http://localhost:8181/v1/data/testrule",
+        additional_matcher=lambda r: r.json()
+        == {
+            "input": {
+                "target": {"bad": "actor"},
+                "credentials": {"project_id": "pid"},
+            }
+        },
+        json={"result": {"allow": False, "filtered": {"baz": "bar"}}},
+    )
+    default_rule = _checks.TrueCheck()
+    enforcer = policy.Enforcer(config, default_rule=default_rule)
+
+    attrs = {"foo": "bar", "baz": "foo"}
+    results = list(
+        check(
+            [
+                {"foo": "bar", "attributes_to_update": attrs.values()},
+                {"baz": "bar", "ignore": "me"},
+                {"bad": "actor"},
+            ],
+            {"project_id": "pid"},
+            enforcer,
+            None,
+        )
+    )
+    assert [{"foo": "bar"}, {"baz": "bar"}] == results
+
+
 def test_execute_glance(requests_mock, config):
     """Test proper dealing with Glance ImageTarget"""
     check = opa.OPACheck("opa", "testrule")

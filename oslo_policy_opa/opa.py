@@ -204,31 +204,48 @@ class OPAFilter(OPACheck):
             "remote_timeout",
             enforcer.conf.oslo_policy.opa_timeout,
         )
+        url = "/".join(
+            [
+                enforcer.conf.oslo_policy.opa_url,
+                "v1",
+                "data",
+                normalize_name(self.match),
+            ]
+        )
 
-        with concurrent.futures.ThreadPoolExecutor(
-            max_workers=enforcer.conf.oslo_policy.opa_filter_max_threads_count
-        ) as executor:
-            url = "/".join(
-                [
-                    enforcer.conf.oslo_policy.opa_url,
-                    "v1",
-                    "data",
-                    normalize_name(self.match),
-                ]
-            )
-            results = executor.map(
-                partial(query_filter, url=url, timeout=timeout),
-                [
-                    self._construct_payload(
-                        creds, current_rule, enforcer, target
+        results: list = []
+        if enforcer.conf.oslo_policy.opa_filter_max_threads_count > 0:
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=enforcer.conf.oslo_policy.opa_filter_max_threads_count
+            ) as executor:
+                results = list(
+                    executor.map(
+                        partial(query_filter, url=url, timeout=timeout),
+                        [
+                            self._construct_payload(
+                                creds, current_rule, enforcer, target
+                            )
+                            for target in targets
+                        ],
+                        timeout=timeout,
                     )
-                    for target in targets
-                ],
-            )
-            executor.shutdown()
+                )
 
-            for result in results:
-                if result.get("allow", False):
-                    filtered = result.get("filtered", {})
-                    if filtered:
-                        yield filtered
+        else:
+            # It may be explicitly desired not to run threads
+            for item in targets:
+                results.append(
+                    query_filter(
+                        json=self._construct_payload(
+                            creds, current_rule, enforcer, item
+                        ),
+                        url=url,
+                        timeout=timeout,
+                    )
+                )
+
+        for result in results:
+            if result.get("allow", False):
+                filtered = result.get("filtered", {})
+                if filtered:
+                    yield filtered
