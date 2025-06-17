@@ -35,3 +35,29 @@ jobs:
 
       - name: Run tests
         run: uv run pytest
+
+  functional:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install the project
+        run: uv sync --all-extras --dev
+
+      - name: Setup OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: 1.5.0
+
+      - name: Start OPA
+        run: opa run -s -a localhost:8181 fixtures &
+
+      - name: Run tests
+        run: uv run pytest oslo_policy_opa/tests/functional.py
