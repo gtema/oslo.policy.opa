@@ -15,10 +15,13 @@ import concurrent.futures
 import contextlib
 import copy
 import datetime
+import json
 from functools import partial
 import logging
 import requests
 import typing as ty
+import urllib.request
+import urllib.parse
 
 from oslo_policy import _checks
 
@@ -28,9 +31,7 @@ LOG = logging.getLogger(__name__)
 
 
 def normalize_name(name: str) -> str:
-    return name.translate(
-        str.maketrans({":": "/", "-": "_"})  # type: ignore
-    )
+    return name.translate(str.maketrans({":": "/", "-": "_"}))  # type: ignore
 
 
 class OPACheck(_checks.Check):
@@ -62,21 +63,55 @@ class OPACheck(_checks.Check):
                 "allow",
             ]
         )
-        json = self._construct_payload(creds, current_rule, enforcer, target)
+        payload = self._construct_payload(
+            creds, current_rule, enforcer, target
+        )
+        json_data = json.dumps(payload)
+        json_data_as_bytes = json_data.encode("utf-8")
+
+        req = urllib.request.Request(
+            url, data=json_data_as_bytes, method="POST"
+        )
+        req.add_header("Content-Type", "application/json")
+        req.add_header("Content-Length", str(len(json_data_as_bytes)))
+
         try:
-            with contextlib.closing(
-                requests.post(url, json=json, timeout=timeout)
-            ) as r:
-                if r.status_code == 200:
-                    result = r.json().get("result")
-                    if isinstance(result, bool):
-                        return result
-                    else:
+            # In real deployment sometimes requests exceed the timeout set
+            # with requests library. Investigation shows that the response
+            # was successfully processed by the kernel and ACKed while the
+            # service still times out. Debugging this is nearly impossible,
+            # so we try to eliminate as much dependencies as possible and
+            # use urllib directly.
+            if not url.startswith("http"):
+                # Prevent https://cwe.mitre.org/data/definitions/22.html
+                # (https://bandit.readthedocs.io/en/latest/blacklists/blacklist_calls.html#b310-urllib-urlopen)
+                LOG.error(
+                    f"OPA url must be HTTP or HTTPS. {req.type} is not supported."
+                )
+                raise RuntimeError()
+
+            with urllib.request.urlopen(req, timeout=timeout) as response:  # nosec B310
+                if response.status == 200:
+                    response_body = response.read().decode("utf-8")
+                    try:
+                        response_json = json.loads(response_body)
+                        result = response_json.get("result")
+                        if isinstance(result, bool):
+                            return result
+                        else:
+                            return False
+
+                    except json.JSONDecodeError:
+                        LOG.error(
+                            f"Got invalid response {response_body}. "
+                            "Expecting json."
+                        )
                         return False
+
                 else:
                     LOG.error(
-                        "Exception during checking OPA. Status_code = %s",
-                        r.status_code,
+                        "Exception during checking OPA. Status_code ="
+                        f" {response.status}"
                     )
         except Exception as ex:
             LOG.error(
