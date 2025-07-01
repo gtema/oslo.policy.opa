@@ -12,14 +12,11 @@
 
 from collections import abc
 import datetime
-import json
 import os
 from pathlib import Path
 import pytest
 import tempfile
 import typing as ty
-from unittest.mock import MagicMock
-import urllib
 import warnings
 
 from oslo_config import cfg
@@ -47,52 +44,42 @@ def config(request):
         yield cfg.CONF
 
 
-def create_mock_response(status_code, body_content):
-    """Helper to create a mock response for urlopen context manager."""
-    mock_response = MagicMock(autospec=True)
-    mock_response.getcode.return_value = status_code
-    mock_response.read.return_value = body_content.encode("utf-8")
-    mock_response.status = 200
-    return mock_response
-
-
-def test_execute_json(mocker, config):
+def test_execute_json(requests_mock, config):
     check = opa.OPACheck("opa", "testrule")
-    mock_urlopen_return_value = create_mock_response(201, '{"result": true}')
-    mock_urlopen = mocker.patch("oslo_policy_opa.opa.urllib.request.urlopen")
-    mock_urlopen.return_value.__enter__.return_value = (
-        mock_urlopen_return_value
+    requests_mock.post(
+        "http://localhost:8181/v1/data/testrule/allow",
+        additional_matcher=lambda r: r.json()
+        == {
+            "input": {
+                "target": {"foo": "bar"},
+                "credentials": {"project_id": "pid"},
+            }
+        },
+        json={"result": True},
     )
-
     default_rule = _checks.TrueCheck()
     enforcer = policy.Enforcer(config, default_rule=default_rule)
 
     assert check({"foo": "bar"}, {"project_id": "pid"}, enforcer, None)
 
-    assert mock_urlopen.called
-    request_obj = mock_urlopen.call_args[0][0]
-    assert isinstance(request_obj, urllib.request.Request)
-    assert (
-        request_obj.full_url == "http://localhost:8181/v1/data/testrule/allow"
-    )
-    assert request_obj.get_method() == "POST"
-    assert json.loads(request_obj.data.decode("utf-8")) == {
-        "input": {
-            "target": {"foo": "bar"},
-            "credentials": {"project_id": "pid"},
-        }
-    }
 
-
-def test_execute_json_neutron_dict_keys(mocker, config):
+def test_execute_json_neutron_dict_keys(requests_mock, config):
     """Test with target containing dict_keys (as used by Neutron)"""
     check = opa.OPACheck("opa", "testrule")
-    mock_urlopen_return_value = create_mock_response(201, '{"result": true}')
-    mock_urlopen = mocker.patch("oslo_policy_opa.opa.urllib.request.urlopen")
-    mock_urlopen.return_value.__enter__.return_value = (
-        mock_urlopen_return_value
+    requests_mock.post(
+        "http://localhost:8181/v1/data/testrule/allow",
+        additional_matcher=lambda r: r.json()
+        == {
+            "input": {
+                "target": {
+                    "foo": "bar",
+                    "attributes_to_update": ["foo", "baz"],
+                },
+                "credentials": {"project_id": "pid"},
+            }
+        },
+        json={"result": True},
     )
-
     default_rule = _checks.TrueCheck()
     enforcer = policy.Enforcer(config, default_rule=default_rule)
 
@@ -104,30 +91,24 @@ def test_execute_json_neutron_dict_keys(mocker, config):
         None,
     )
 
-    assert mock_urlopen.called
-    request_obj = mock_urlopen.call_args[0][0]
-    assert isinstance(request_obj, urllib.request.Request)
-    assert (
-        request_obj.full_url == "http://localhost:8181/v1/data/testrule/allow"
-    )
-    assert request_obj.get_method() == "POST"
-    assert json.loads(request_obj.data.decode("utf-8")) == {
-        "input": {
-            "target": {"foo": "bar", "attributes_to_update": ["foo", "baz"]},
-            "credentials": {"project_id": "pid"},
-        }
-    }
 
-
-def test_execute_json_neutron_dict_values(mocker, config):
+def test_execute_json_neutron_dict_values(requests_mock, config):
     """Test with target containing dict_keys"""
     check = opa.OPACheck("opa", "testrule")
-    mock_urlopen_return_value = create_mock_response(201, '{"result": true}')
-    mock_urlopen = mocker.patch("oslo_policy_opa.opa.urllib.request.urlopen")
-    mock_urlopen.return_value.__enter__.return_value = (
-        mock_urlopen_return_value
+    requests_mock.post(
+        "http://localhost:8181/v1/data/testrule/allow",
+        additional_matcher=lambda r: r.json()
+        == {
+            "input": {
+                "target": {
+                    "foo": "bar",
+                    "attributes_to_update": ["bar", "foo"],
+                },
+                "credentials": {"project_id": "pid"},
+            }
+        },
+        json={"result": True},
     )
-
     default_rule = _checks.TrueCheck()
     enforcer = policy.Enforcer(config, default_rule=default_rule)
 
@@ -138,20 +119,6 @@ def test_execute_json_neutron_dict_values(mocker, config):
         enforcer,
         None,
     )
-
-    assert mock_urlopen.called
-    request_obj = mock_urlopen.call_args[0][0]
-    assert isinstance(request_obj, urllib.request.Request)
-    assert (
-        request_obj.full_url == "http://localhost:8181/v1/data/testrule/allow"
-    )
-    assert request_obj.get_method() == "POST"
-    assert json.loads(request_obj.data.decode("utf-8")) == {
-        "input": {
-            "target": {"foo": "bar", "attributes_to_update": ["bar", "foo"]},
-            "credentials": {"project_id": "pid"},
-        }
-    }
 
 
 def test_execute_filter_json_neutron_dict_values(requests_mock, config):
@@ -274,15 +241,20 @@ def test_execute_filter_json_neutron_dict_values_no_threads(
     assert [{"foo": "bar"}, {"baz": "bar"}] == results
 
 
-def test_execute_glance(mocker, config):
+def test_execute_glance(requests_mock, config):
     """Test proper dealing with Glance ImageTarget"""
     check = opa.OPACheck("opa", "testrule")
-    mock_urlopen_return_value = create_mock_response(201, '{"result": true}')
-    mock_urlopen = mocker.patch("oslo_policy_opa.opa.urllib.request.urlopen")
-    mock_urlopen.return_value.__enter__.return_value = (
-        mock_urlopen_return_value
+    requests_mock.post(
+        "http://localhost:8181/v1/data/testrule/allow",
+        additional_matcher=lambda r: r.json()
+        == {
+            "input": {
+                "target": {"foo": "bar", "bar": None},
+                "credentials": {"project_id": "pid"},
+            }
+        },
+        json={"result": True},
     )
-
     default_rule = _checks.TrueCheck()
     enforcer = policy.Enforcer(config, default_rule=default_rule)
 
@@ -352,34 +324,25 @@ def test_execute_glance(mocker, config):
         None,
     )
 
-    assert mock_urlopen.called
-    request_obj = mock_urlopen.call_args[0][0]
-    assert isinstance(request_obj, urllib.request.Request)
-    assert (
-        request_obj.full_url == "http://localhost:8181/v1/data/testrule/allow"
-    )
-    assert request_obj.get_method() == "POST"
-    assert json.loads(request_obj.data.decode("utf-8")) == {
-        "input": {
-            "target": {"foo": "bar", "bar": None},
-            "credentials": {"project_id": "pid"},
-        }
-    }
-
     assert check._construct_payload(
         {}, None, enforcer, ImageTarget(target=Image(foo="bar"))
     ) == {"input": {"credentials": {}, "target": {"bar": None, "foo": "bar"}}}
 
 
-def test_credentials_mutablemapping(mocker, config):
+def test_credentials_mutablemapping(requests_mock, config):
     """Test proper dealing with Glance ImageTarget"""
     check = opa.OPACheck("opa", "testrule")
-    mock_urlopen_return_value = create_mock_response(201, '{"result": true}')
-    mock_urlopen = mocker.patch("oslo_policy_opa.opa.urllib.request.urlopen")
-    mock_urlopen.return_value.__enter__.return_value = (
-        mock_urlopen_return_value
+    requests_mock.post(
+        "http://localhost:8181/v1/data/testrule/allow",
+        additional_matcher=lambda r: r.json()
+        == {
+            "input": {
+                "target": {"foo": "bar", "bar": None},
+                "credentials": {"project_id": "pid"},
+            }
+        },
+        json={"result": True},
     )
-
     default_rule = _checks.TrueCheck()
     enforcer = policy.Enforcer(config, default_rule=default_rule)
 
@@ -436,20 +399,6 @@ def test_credentials_mutablemapping(mocker, config):
     c = Creds({"project_id": "pid"})
 
     assert check({"foo": "bar", "bar": None}, c, enforcer, None)
-
-    assert mock_urlopen.called
-    request_obj = mock_urlopen.call_args[0][0]
-    assert isinstance(request_obj, urllib.request.Request)
-    assert (
-        request_obj.full_url == "http://localhost:8181/v1/data/testrule/allow"
-    )
-    assert request_obj.get_method() == "POST"
-    assert json.loads(request_obj.data.decode("utf-8")) == {
-        "input": {
-            "target": {"foo": "bar", "bar": None},
-            "credentials": {"project_id": "pid"},
-        }
-    }
 
 
 def test_construct_payload_datetime(config):
