@@ -444,3 +444,33 @@ def test_construct_payload_object():
     assert {
         "input": {"credentials": {}, "target": {"tags": ["a", "b"]}}
     } == res
+
+
+def test_execute_manila(requests_mock, config):
+    """Test proper dealing with Glance ImageTarget"""
+    check = opa.OPACheck("opa", "testrule")
+    requests_mock.post(
+        "http://localhost:8181/v1/data/testrule/allow",
+        additional_matcher=lambda r: r.json()
+        == {
+            "input": {
+                "target": {"foo": "bar"},
+                "credentials": {"project_id": "pid"},
+            }
+        },
+        json={"result": True},
+    )
+    default_rule = _checks.TrueCheck()
+    enforcer = policy.Enforcer(config, default_rule=default_rule)
+
+    class Model:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+
+        def __iter__(self):
+            yield from self.__dict__.items()
+
+    assert check._construct_payload({}, None, enforcer, Model(foo="bar")) == {
+        "input": {"credentials": {}, "target": {"foo": "bar"}}
+    }

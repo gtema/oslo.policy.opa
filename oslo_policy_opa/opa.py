@@ -110,43 +110,53 @@ class OPACheck(_checks.Check):
         # serialization
         temp_target: dict[str, ty.Any] = {}
         for attr in target:
-            if (
-                isinstance(
-                    target[attr], (str, int, float, bool, list, tuple, dict)
+            try:
+                if isinstance(attr, tuple) and len(attr):
+                    key = attr[0]
+                    val = attr[1]
+                else:
+                    key = attr
+                    val = target[attr]
+            except Exception as ex:
+                LOG.error(
+                    f"Failure iterating over the target "
+                    f"(attribute: {attr}): {ex}"
                 )
-                or target[attr] is None
+                raise
+            if (
+                isinstance(val, (str, int, float, bool, list, tuple, dict))
+                or val is None
             ):
-                temp_target[attr] = copy.deepcopy(target[attr])
-            elif isinstance(target[attr], datetime.datetime):
+                temp_target[key] = copy.deepcopy(val)
+            elif isinstance(val, datetime.datetime):
                 # Cast datetime to iso format
-                temp_target[attr] = target[attr].isoformat()
+                temp_target[key] = val.isoformat()
             elif isinstance(
-                target[attr],
-                (collections.abc.KeysView, collections.abc.ValuesView),
+                val, (collections.abc.KeysView, collections.abc.ValuesView)
             ):
-                temp_target[attr] = list(target[attr])
-            elif hasattr(target[attr], "__iter__"):
+                temp_target[key] = list(val)
+            elif hasattr(val, "__iter__"):
                 # There is an iterator access. Try going this way analyzing
                 # every item
                 try:
                     subobj = []
-                    for sa in target[attr]:
+                    for sa in val:
                         if (
                             isinstance(
                                 sa, (str, int, float, bool, list, tuple, dict)
                             )
-                            or target[attr] is None
+                            or val is None
                         ):
                             subobj.append(sa)
-                    temp_target[attr] = subobj
+                    temp_target[key] = subobj
                 except Exception as e:  # noqa
                     LOG.exception(e)
                     pass
 
             else:
                 LOG.warning(
-                    f"Ignoring attribute {attr} with value {target[attr]} "
-                    f"since it has unserializable type {type(target[attr])}"
+                    f"Ignoring attribute {key} with value {val} "
+                    f"since it has unserializable type {type(val)}"
                 )
         # NOTE(gtema): Octavia uses `oslo.context:to_policy_values` which
         # returns `_DeprecatedPolicyValues`, which in turn is
