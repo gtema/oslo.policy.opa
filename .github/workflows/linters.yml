@@ -34,7 +34,7 @@ jobs:
       uses: astral-sh/ruff-action@v3
 
     - name: "Set up Python"
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version-file: "pyproject.toml"
 
