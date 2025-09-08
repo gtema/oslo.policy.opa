@@ -27,7 +27,7 @@ _options = [
             "scheme."
         ),
     ),
-    cfg.IntOpt(
+    cfg.FloatOpt(
         "opa_timeout",
         default=1,
         help=_(
@@ -43,6 +43,22 @@ _options = [
             "Maximal count of threads used by the ThreadPoolExecutor to "
             "parallelize opa_filter based rules. Set to `0` to skip threading "
             "and just process items selially."
+        ),
+    ),
+    cfg.IntOpt(
+        "opa_max_retries",
+        default=0,
+        help=_(
+            "Max. number of retries in case of connection problems "
+            "with OpenPolicyAgent."
+        ),
+    ),
+    cfg.BoolOpt(
+        "opa_reuse_session",
+        default=True,
+        help=_(
+            "Whether to try to reuse the single session across invocations. "
+            "Relies on the use of threading.lock"
         ),
     ),
 ]
