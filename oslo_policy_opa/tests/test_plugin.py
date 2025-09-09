@@ -19,6 +19,8 @@ import tempfile
 import typing as ty
 import warnings
 
+import httpretty
+
 from oslo_config import cfg
 from oslo_policy import policy
 from oslo_policy import _checks
@@ -40,8 +42,32 @@ def config(request):
         cfg.CONF.set_override(
             "opa_url", "http://localhost:8181", group="oslo_policy"
         )
+        cfg.CONF.set_override("remote_timeout", 0.1, group="oslo_policy")
         cfg.CONF.set_override("policy_file", path, group="oslo_policy")
+        cfg.CONF.set_override("opa_max_retries", 3, group="oslo_policy")
         yield cfg.CONF
+
+
+# requests-mock does not allow testing custom adapters. Therefore use the
+# httpretty to have socket based test
+@httpretty.activate(verbose=True, allow_net_connect=True)
+def test_execute_retry(config):
+    check = opa.OPACheck("opa", "testrule")
+    url = "http://localhost:8181/v1/data/testrule/allow"
+
+    httpretty.register_uri(
+        httpretty.POST,
+        url,
+        responses=[
+            httpretty.Response(body='{"message": "HTTPretty :)"}', status=500),
+            httpretty.Response(body='{"result": true}', status=200),
+        ],
+    )
+
+    default_rule = _checks.TrueCheck()
+    enforcer = policy.Enforcer(config, default_rule=default_rule)
+
+    assert check({"foo": "bar"}, {"project_id": "pid"}, enforcer, None)
 
 
 def test_execute_json(requests_mock, config):

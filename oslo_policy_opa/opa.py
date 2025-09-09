@@ -15,16 +15,59 @@ import concurrent.futures
 import contextlib
 import copy
 import datetime
+import threading
 from functools import partial
 import logging
 import requests
 import typing as ty
+
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from oslo_policy import _checks
 
 from oslo_policy_opa import opts
 
 LOG = logging.getLogger(__name__)
+_session = None
+_lock = threading.Lock()
+
+
+def get_session(max_retries: int = 3, reuse_session: bool = True):
+    """
+    Lazily creates and returns a thread-safe, singleton requests.Session object
+    configured with a robust retry strategy.
+    """
+
+    def _new_session():
+        _session = requests.Session()
+
+        # Configure the retry strategy
+        retry = Retry(
+            total=max_retries,  # Total number of retries
+            backoff_factor=0,
+            allowed_methods=["POST"],
+            status_forcelist=[500, 502, 503, 504],
+        )
+
+        # Mount the retry strategy to the session
+        adapter = HTTPAdapter(max_retries=retry)
+        _session.mount("http://", adapter)
+        _session.mount("https://", adapter)
+
+        return _session
+
+    if reuse_session:
+        # Use a lock to ensure that the session is only created once, even
+        # in a multi-threaded environment.
+        with _lock:
+            global _session
+            if _session is None:
+                # A session is created only if one doesn't already exist.
+                _session = _new_session()
+        return _session
+    else:
+        return _new_session()
 
 
 def normalize_name(name: str) -> str:
@@ -45,25 +88,17 @@ class OPACheck(_checks.Check):
             opts._register(enforcer.conf)
             self.opts_registered = True
 
-        timeout = getattr(
-            enforcer.conf.oslo_policy,
-            "remote_timeout",
-            enforcer.conf.oslo_policy.opa_timeout,
-        )
+        conf = enforcer.conf.oslo_policy
+        timeout = getattr(conf, "remote_timeout", conf.opa_timeout)
 
         url = "/".join(
-            [
-                enforcer.conf.oslo_policy.opa_url,
-                "v1",
-                "data",
-                normalize_name(self.match),
-                "allow",
-            ]
+            [conf.opa_url, "v1", "data", normalize_name(self.match), "allow"]
         )
         json = self._construct_payload(creds, current_rule, enforcer, target)
 
         try:
-            with requests.post(url, json=json, timeout=timeout) as response:
+            session = get_session(conf.opa_max_retries, conf.opa_reuse_session)
+            with session.post(url, json=json, timeout=timeout) as response:
                 if response.status_code == 200:
                     result = response.json().get("result")
                     if isinstance(result, bool):
@@ -172,8 +207,9 @@ class OPACheck(_checks.Check):
 
 def query_filter(json: dict, url: str, timeout: int):
     try:
+        session = get_session(3, True)
         with contextlib.closing(
-            requests.post(url, json=json, timeout=timeout)
+            session.post(url, json=json, timeout=timeout)
         ) as r:
             if r.status_code == 200:
                 return r.json().get("result")
@@ -206,24 +242,16 @@ class OPAFilter(OPACheck):
             opts._register(enforcer.conf)
             self.opts_registered = True
 
-        timeout = getattr(
-            enforcer.conf.oslo_policy,
-            "remote_timeout",
-            enforcer.conf.oslo_policy.opa_timeout,
-        )
+        conf = enforcer.conf.oslo_policy
+        timeout = getattr(conf, "remote_timeout", conf.opa_timeout)
         url = "/".join(
-            [
-                enforcer.conf.oslo_policy.opa_url,
-                "v1",
-                "data",
-                normalize_name(self.match),
-            ]
+            [conf.opa_url, "v1", "data", normalize_name(self.match)]
         )
 
         results: list = []
-        if enforcer.conf.oslo_policy.opa_filter_max_threads_count > 0:
+        if conf.opa_filter_max_threads_count > 0:
             with concurrent.futures.ThreadPoolExecutor(
-                max_workers=enforcer.conf.oslo_policy.opa_filter_max_threads_count
+                max_workers=conf.opa_filter_max_threads_count
             ) as executor:
                 results = list(
                     executor.map(
