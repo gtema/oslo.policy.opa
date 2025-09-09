@@ -61,6 +61,13 @@ _options = [
             "Relies on the use of threading.lock"
         ),
     ),
+    cfg.BoolOpt(
+        "opa_fallback_to_code_policy",
+        default=True,
+        help=_(
+            "Whether to evaluate the code policy when OPA is not available."
+        ),
+    ),
 ]
 
 

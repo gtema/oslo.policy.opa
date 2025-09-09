@@ -70,6 +70,18 @@ def test_execute_retry(config):
     assert check({"foo": "bar"}, {"project_id": "pid"}, enforcer, None)
 
 
+def test_execute_no_fallback(requests_mock, config):
+    check = opa.OPACheck("opa", "testrule")
+    config.set_override(
+        "opa_fallback_to_code_policy", False, group="oslo_policy"
+    )
+    default_rule = _checks.TrueCheck()
+    enforcer = policy.Enforcer(config, default_rule=default_rule)
+
+    with pytest.raises(Exception):
+        check({"foo": "bar"}, {"project_id": "pid"}, enforcer, None)
+
+
 def test_execute_json(requests_mock, config):
     check = opa.OPACheck("opa", "testrule")
     requests_mock.post(

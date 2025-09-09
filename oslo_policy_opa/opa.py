@@ -111,10 +111,12 @@ class OPACheck(_checks.Check):
                         f"{response.status}"
                     )
         except Exception as ex:
-            LOG.error(
-                f"Exception during checking OPA {ex}. Fallback to the "
-                "DocumentedRuleDefault"
-            )
+            msg = f"Exception during checking OPA {ex}"
+            LOG.error(msg)
+            if not conf.opa_fallback_to_code_policy:
+                raise
+            LOG.warning("Fallback to the DocumentedRuleDefault")
+
         # When any exception has happened during the communication or OPA
         # result processing we want to fallback to the default rule
         default_rule = enforcer.registered_rules.get(current_rule)
