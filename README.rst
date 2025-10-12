@@ -276,7 +276,7 @@ Neutron data is relatively dynamic and need to be available immediately
 properties). Therefore the only way of addressing this is to query the data
 dynamically. Here come the challenge: how to do this? It would be possible to
 implement custom functions for OPA to either invoke Neutron API or access DB
-directly. Sadly this requires recompiling OPA and distrubuting custom build.
+directly. Sadly this requires recompiling OPA and distributing custom build.
 That is not very practical. The other way would be to rely on already supported
 HTTP function, but requires building small adapter that either translates calls
 into the Neutron API (the call was already triggered by neutron api, so why do
