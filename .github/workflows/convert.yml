@@ -45,7 +45,7 @@ jobs:
       - name: Test policy files
         run: opa test artifacts/${{ matrix.service }}
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: opa-policies-${{ matrix.service }}
           path: artifacts/
