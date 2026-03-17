@@ -196,9 +196,9 @@ name = "boto3"
 version = "1.37.31"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "botocore" },
-    { name = "jmespath" },
-    { name = "s3transfer" },
+    { name = "botocore", marker = "python_full_version >= '3.10'" },
+    { name = "jmespath", marker = "python_full_version >= '3.10'" },
+    { name = "s3transfer", marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a3/3b/6b4562b00be71ec82de8f33c857501a093f99bdec439cda56622c3932eea/boto3-1.37.31.tar.gz", hash = "sha256:dfee02b2f8f632a239a2f4ba6a2d568e2edd7f7464e9afd8a487fdb3fa9a0ad3", size = 111369, upload-time = "2025-04-09T19:39:39.523Z" }
 wheels = [
@@ -210,10 +210,9 @@ name = "botocore"
 version = "1.37.31"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "jmespath" },
-    { name = "python-dateutil" },
-    { name = "urllib3", version = "1.26.20", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "urllib3", version = "2.6.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "jmespath", marker = "python_full_version >= '3.10'" },
+    { name = "python-dateutil", marker = "python_full_version >= '3.10'" },
+    { name = "urllib3", marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c5/89/33afc4b679212a02e825e634a37bc48d51060811be64bb396aec06e9da52/botocore-1.37.31.tar.gz", hash = "sha256:eb3dfa44a87187bd82c3b493d568d8436270d4d000f237b49b669a01fcd8a21c", size = 13811180, upload-time = "2025-04-09T19:39:26.457Z" }
 wheels = [
@@ -430,67 +429,147 @@ wheels = [
 
 [[package]]
 name = "cinder"
+version = "17.4.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version < '3.10'",
+]
+dependencies = [
+    { name = "castellan", marker = "python_full_version < '3.10'" },
+    { name = "cryptography", marker = "python_full_version < '3.10'" },
+    { name = "cursive", marker = "python_full_version < '3.10'" },
+    { name = "decorator", marker = "python_full_version < '3.10'" },
+    { name = "eventlet", marker = "python_full_version < '3.10'" },
+    { name = "google-api-python-client", marker = "python_full_version < '3.10'" },
+    { name = "greenlet", marker = "python_full_version < '3.10'" },
+    { name = "httplib2", marker = "python_full_version < '3.10'" },
+    { name = "iso8601", marker = "python_full_version < '3.10'" },
+    { name = "jsonschema", marker = "python_full_version < '3.10'" },
+    { name = "keystoneauth1", marker = "python_full_version < '3.10'" },
+    { name = "keystonemiddleware", marker = "python_full_version < '3.10'" },
+    { name = "lxml", marker = "python_full_version < '3.10'" },
+    { name = "oauth2client", marker = "python_full_version < '3.10'" },
+    { name = "os-brick", marker = "python_full_version < '3.10'" },
+    { name = "os-win", marker = "python_full_version < '3.10'" },
+    { name = "oslo-concurrency", marker = "python_full_version < '3.10'" },
+    { name = "oslo-config", marker = "python_full_version < '3.10'" },
+    { name = "oslo-context", marker = "python_full_version < '3.10'" },
+    { name = "oslo-db", marker = "python_full_version < '3.10'" },
+    { name = "oslo-i18n", marker = "python_full_version < '3.10'" },
+    { name = "oslo-log", marker = "python_full_version < '3.10'" },
+    { name = "oslo-messaging", marker = "python_full_version < '3.10'" },
+    { name = "oslo-middleware", marker = "python_full_version < '3.10'" },
+    { name = "oslo-policy", marker = "python_full_version < '3.10'" },
+    { name = "oslo-privsep", marker = "python_full_version < '3.10'" },
+    { name = "oslo-reports", marker = "python_full_version < '3.10'" },
+    { name = "oslo-rootwrap", marker = "python_full_version < '3.10'" },
+    { name = "oslo-serialization", marker = "python_full_version < '3.10'" },
+    { name = "oslo-service", marker = "python_full_version < '3.10'" },
+    { name = "oslo-upgradecheck", marker = "python_full_version < '3.10'" },
+    { name = "oslo-utils", marker = "python_full_version < '3.10'" },
+    { name = "oslo-versionedobjects", marker = "python_full_version < '3.10'" },
+    { name = "oslo-vmware", marker = "python_full_version < '3.10'" },
+    { name = "osprofiler", marker = "python_full_version < '3.10'" },
+    { name = "packaging", marker = "python_full_version < '3.10'" },
+    { name = "paramiko", marker = "python_full_version < '3.10'" },
+    { name = "paste", marker = "python_full_version < '3.10'" },
+    { name = "pastedeploy", marker = "python_full_version < '3.10'" },
+    { name = "pbr", marker = "python_full_version < '3.10'" },
+    { name = "psutil", marker = "python_full_version < '3.10'" },
+    { name = "pyparsing", marker = "python_full_version < '3.10'" },
+    { name = "python-barbicanclient", marker = "python_full_version < '3.10'" },
+    { name = "python-glanceclient", marker = "python_full_version < '3.10'" },
+    { name = "python-keystoneclient", marker = "python_full_version < '3.10'" },
+    { name = "python-novaclient", marker = "python_full_version < '3.10'" },
+    { name = "python-swiftclient", marker = "python_full_version < '3.10'" },
+    { name = "pytz", marker = "python_full_version < '3.10'" },
+    { name = "requests", marker = "python_full_version < '3.10'" },
+    { name = "routes", marker = "python_full_version < '3.10'" },
+    { name = "rtslib-fb", marker = "python_full_version < '3.10'" },
+    { name = "six", marker = "python_full_version < '3.10'" },
+    { name = "sqlalchemy", marker = "python_full_version < '3.10'" },
+    { name = "sqlalchemy-migrate", marker = "python_full_version < '3.10'" },
+    { name = "stevedore", marker = "python_full_version < '3.10'" },
+    { name = "tabulate", marker = "python_full_version < '3.10'" },
+    { name = "taskflow", marker = "python_full_version < '3.10'" },
+    { name = "tenacity", marker = "python_full_version < '3.10'" },
+    { name = "tooz", marker = "python_full_version < '3.10'" },
+    { name = "webob", marker = "python_full_version < '3.10'" },
+    { name = "zstd", marker = "python_full_version < '3.10'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1c/b5/3a6445dc12656f99edbf5392a6170731724e0a935fc072748c6250d01040/cinder-17.4.0.tar.gz", hash = "sha256:a843af4ef2c1b7652687e82dbd830578398c35b9e4ed38f1fbeb408d2406732e", size = 5836867, upload-time = "2022-04-27T09:53:24.487Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fb/78/00bd52a05fa86dc58e011a7175bc37d1875a500339a2d390ce7e0a082578/cinder-17.4.0-py3-none-any.whl", hash = "sha256:4a643c962e9377f153648e198389bf0decdb336988a117c831dddce0ac8e95cc", size = 4771238, upload-time = "2022-04-27T09:53:21.649Z" },
+]
+
+[[package]]
+name = "cinder"
 version = "26.2.0"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.13'",
+    "python_full_version == '3.12.*'",
+    "python_full_version >= '3.10' and python_full_version < '3.12'",
+]
 dependencies = [
-    { name = "boto3" },
-    { name = "castellan" },
-    { name = "cryptography" },
-    { name = "cursive" },
-    { name = "decorator" },
-    { name = "distro" },
-    { name = "eventlet" },
-    { name = "google-api-python-client" },
-    { name = "greenlet" },
-    { name = "iso8601" },
-    { name = "jsonschema" },
-    { name = "keystoneauth1" },
-    { name = "keystonemiddleware" },
-    { name = "lxml" },
-    { name = "os-brick" },
-    { name = "os-win" },
-    { name = "oslo-concurrency" },
-    { name = "oslo-config" },
-    { name = "oslo-context" },
-    { name = "oslo-db" },
-    { name = "oslo-i18n" },
-    { name = "oslo-log" },
-    { name = "oslo-messaging" },
-    { name = "oslo-middleware" },
-    { name = "oslo-policy" },
-    { name = "oslo-privsep" },
-    { name = "oslo-reports" },
-    { name = "oslo-rootwrap" },
-    { name = "oslo-serialization" },
-    { name = "oslo-service" },
-    { name = "oslo-upgradecheck" },
-    { name = "oslo-utils" },
-    { name = "oslo-versionedobjects" },
-    { name = "oslo-vmware" },
-    { name = "osprofiler" },
-    { name = "packaging" },
-    { name = "paramiko" },
-    { name = "paste" },
-    { name = "pastedeploy" },
-    { name = "pbr" },
-    { name = "pyparsing" },
-    { name = "python-barbicanclient" },
-    { name = "python-glanceclient" },
-    { name = "python-keystoneclient" },
-    { name = "python-novaclient" },
-    { name = "python-swiftclient" },
-    { name = "requests" },
-    { name = "routes" },
-    { name = "rtslib-fb" },
-    { name = "sqlalchemy" },
-    { name = "stevedore" },
-    { name = "tabulate" },
-    { name = "taskflow" },
-    { name = "tenacity" },
-    { name = "tooz" },
-    { name = "tzdata" },
-    { name = "webob" },
-    { name = "zstd" },
+    { name = "boto3", marker = "python_full_version >= '3.10'" },
+    { name = "castellan", marker = "python_full_version >= '3.10'" },
+    { name = "cryptography", marker = "python_full_version >= '3.10'" },
+    { name = "cursive", marker = "python_full_version >= '3.10'" },
+    { name = "decorator", marker = "python_full_version >= '3.10'" },
+    { name = "distro", marker = "python_full_version >= '3.10'" },
+    { name = "eventlet", marker = "python_full_version >= '3.10'" },
+    { name = "google-api-python-client", marker = "python_full_version >= '3.10'" },
+    { name = "greenlet", marker = "python_full_version >= '3.10'" },
+    { name = "iso8601", marker = "python_full_version >= '3.10'" },
+    { name = "jsonschema", marker = "python_full_version >= '3.10'" },
+    { name = "keystoneauth1", marker = "python_full_version >= '3.10'" },
+    { name = "keystonemiddleware", marker = "python_full_version >= '3.10'" },
+    { name = "lxml", marker = "python_full_version >= '3.10'" },
+    { name = "os-brick", marker = "python_full_version >= '3.10'" },
+    { name = "os-win", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-concurrency", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-config", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-context", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-db", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-i18n", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-log", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-messaging", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-middleware", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-policy", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-privsep", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-reports", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-rootwrap", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-serialization", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-service", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-upgradecheck", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-utils", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-versionedobjects", marker = "python_full_version >= '3.10'" },
+    { name = "oslo-vmware", marker = "python_full_version >= '3.10'" },
+    { name = "osprofiler", marker = "python_full_version >= '3.10'" },
+    { name = "packaging", marker = "python_full_version >= '3.10'" },
+    { name = "paramiko", marker = "python_full_version >= '3.10'" },
+    { name = "paste", marker = "python_full_version >= '3.10'" },
+    { name = "pastedeploy", marker = "python_full_version >= '3.10'" },
+    { name = "pbr", marker = "python_full_version >= '3.10'" },
+    { name = "pyparsing", marker = "python_full_version >= '3.10'" },
+    { name = "python-barbicanclient", marker = "python_full_version >= '3.10'" },
+    { name = "python-glanceclient", marker = "python_full_version >= '3.10'" },
+    { name = "python-keystoneclient", marker = "python_full_version >= '3.10'" },
+    { name = "python-novaclient", marker = "python_full_version >= '3.10'" },
+    { name = "python-swiftclient", marker = "python_full_version >= '3.10'" },
+    { name = "requests", marker = "python_full_version >= '3.10'" },
+    { name = "routes", marker = "python_full_version >= '3.10'" },
+    { name = "rtslib-fb", marker = "python_full_version >= '3.10'" },
+    { name = "sqlalchemy", marker = "python_full_version >= '3.10'" },
+    { name = "stevedore", marker = "python_full_version >= '3.10'" },
+    { name = "tabulate", marker = "python_full_version >= '3.10'" },
+    { name = "taskflow", marker = "python_full_version >= '3.10'" },
+    { name = "tenacity", marker = "python_full_version >= '3.10'" },
+    { name = "tooz", marker = "python_full_version >= '3.10'" },
+    { name = "tzdata", marker = "python_full_version >= '3.10'" },
+    { name = "webob", marker = "python_full_version >= '3.10'" },
+    { name = "zstd", marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/66/a9/3bc380feae34bbfbc70884119273073b56ebaec9b18a7ad9ac3fcb06f075/cinder-26.2.0.tar.gz", hash = "sha256:c1ae006d78aa4f664f43860f79a811e8f6ae09597ed1a0b29a5d455df02067c6", size = 6424034, upload-time = "2025-10-23T09:27:34.019Z" }
 wheels = [
@@ -1970,6 +2049,22 @@ wheels = [
 ]
 
 [[package]]
+name = "oauth2client"
+version = "4.1.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httplib2", marker = "python_full_version < '3.10'" },
+    { name = "pyasn1", marker = "python_full_version < '3.10'" },
+    { name = "pyasn1-modules", marker = "python_full_version < '3.10'" },
+    { name = "rsa", marker = "python_full_version < '3.10'" },
+    { name = "six", marker = "python_full_version < '3.10'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a6/7b/17244b1083e8e604bf154cf9b716aecd6388acd656dd01893d0d244c94d9/oauth2client-4.1.3.tar.gz", hash = "sha256:d486741e451287f69568a4d26d70d9acd73a2bbfa275746c535b4209891cccc6", size = 155910, upload-time = "2018-09-07T21:38:18.036Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/95/a9/4f25a14d23f0786b64875b91784607c2277eff25d48f915e39ff0cff505a/oauth2client-4.1.3-py2.py3-none-any.whl", hash = "sha256:b8a81cc5d60e2d364f0b1b98f958dbd472887acaf1a5b05e21c28c31a2d6d3ac", size = 98206, upload-time = "2018-09-07T21:38:16.742Z" },
+]
+
+[[package]]
 name = "oauthlib"
 version = "3.2.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2470,7 +2565,8 @@ dependencies = [
 [package.optional-dependencies]
 generate = [
     { name = "barbican" },
-    { name = "cinder" },
+    { name = "cinder", version = "17.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "cinder", version = "26.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "designate" },
     { name = "glance" },
     { name = "keystone" },
@@ -2675,8 +2771,7 @@ dependencies = [
     { name = "requests" },
     { name = "stevedore" },
     { name = "suds-community" },
-    { name = "urllib3", version = "1.26.20", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "urllib3", version = "2.6.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "urllib3" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e2/48/015f770c59d9e0f0fca6da811aafaa4cf861bd1d7e37a32a01f513e276d0/oslo_vmware-4.6.0.tar.gz", hash = "sha256:95c7a092a91463d13c55adfdbce552ba56f64a39513debf5cdf55f59f27f47f6", size = 596151, upload-time = "2025-02-21T13:42:46.018Z" }
 wheels = [
@@ -2990,16 +3085,16 @@ wheels = [
 
 [[package]]
 name = "pyopenssl"
-version = "25.3.0"
+version = "26.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
     { name = "typing-extensions", version = "4.13.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.12.*'" },
     { name = "typing-extensions", version = "4.15.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/80/be/97b83a464498a79103036bc74d1038df4a7ef0e402cfaf4d5e113fb14759/pyopenssl-25.3.0.tar.gz", hash = "sha256:c981cb0a3fd84e8602d7afc209522773b94c1c2446a3c710a75b06fe1beae329", size = 184073, upload-time = "2025-09-17T00:32:21.037Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8e/11/a62e1d33b373da2b2c2cd9eb508147871c80f12b1cacde3c5d314922afdd/pyopenssl-26.0.0.tar.gz", hash = "sha256:f293934e52936f2e3413b89c6ce36df66a0b34ae1ea3a053b8c5020ff2f513fc", size = 185534, upload-time = "2026-03-15T14:28:26.353Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d1/81/ef2b1dfd1862567d573a4fdbc9f969067621764fbb74338496840a1d2977/pyopenssl-25.3.0-py3-none-any.whl", hash = "sha256:1fda6fc034d5e3d179d39e59c1895c9faeaf40a79de5fc4cbbfbe0d36f4a77b6", size = 57268, upload-time = "2025-09-17T00:32:19.474Z" },
+    { url = "https://files.pythonhosted.org/packages/fb/7d/d4f7d908fa8415571771b30669251d57c3cf313b36a856e6d7548ae01619/pyopenssl-26.0.0-py3-none-any.whl", hash = "sha256:df94d28498848b98cc1c0ffb8ef1e71e40210d3b0a8064c9d29571ed2904bf81", size = 57969, upload-time = "2026-03-15T14:28:24.864Z" },
 ]
 
 [[package]]
@@ -3373,8 +3468,7 @@ dependencies = [
     { name = "certifi" },
     { name = "charset-normalizer" },
     { name = "idna" },
-    { name = "urllib3", version = "1.26.20", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "urllib3", version = "2.6.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "urllib3" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e1/0a/929373653770d8a0d7ea76c37de6e41f11eb07559b103b1c02cafb3f7cf8/requests-2.32.4.tar.gz", hash = "sha256:27d0316682c8a29834d3264820024b62a36942083d52caf2f14c0591336d3422", size = 135258, upload-time = "2025-06-09T16:43:07.34Z" }
 wheels = [
@@ -3586,7 +3680,7 @@ name = "s3transfer"
 version = "0.11.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "botocore" },
+    { name = "botocore", marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0f/ec/aa1a215e5c126fe5decbee2e107468f51d9ce190b9763cb649f76bb45938/s3transfer-0.11.4.tar.gz", hash = "sha256:559f161658e1cf0a911f45940552c696735f5c74e64362e515f333ebed87d679", size = 148419, upload-time = "2025-03-04T20:29:15.012Z" }
 wheels = [
@@ -3806,6 +3900,23 @@ wheels = [
 ]
 
 [[package]]
+name = "sqlalchemy-migrate"
+version = "0.13.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "decorator", marker = "python_full_version < '3.10'" },
+    { name = "pbr", marker = "python_full_version < '3.10'" },
+    { name = "six", marker = "python_full_version < '3.10'" },
+    { name = "sqlalchemy", marker = "python_full_version < '3.10'" },
+    { name = "sqlparse", marker = "python_full_version < '3.10'" },
+    { name = "tempita", marker = "python_full_version < '3.10'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/36/bb/40f66b12b18fb03da76dcee31df75cca9e54b71d9d8a784bb95bfbadee2c/sqlalchemy-migrate-0.13.0.tar.gz", hash = "sha256:0bc02e292a040ade5e35a01d3ea744119e1309cdddb704fdb99bac13236614f8", size = 131424, upload-time = "2019-10-22T21:16:22.382Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1a/ba/0725bf5f54d0c5ed7c1da025215f288fb68ef4cc4966abfb76c1926ee0af/sqlalchemy_migrate-0.13.0-py2.py3-none-any.whl", hash = "sha256:e5d2348db19a5062132d93e3b4d9e7644af552fffbec4c78cc5358f848d2f6c1", size = 109099, upload-time = "2019-10-22T21:16:17.963Z" },
+]
+
+[[package]]
 name = "sqlalchemy-utils"
 version = "0.41.2"
 source = { registry = "https://pypi.org/simple" }
@@ -3815,6 +3926,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/4d/bf/abfd5474cdd89ddd36dbbde9c6efba16bfa7f5448913eba946fed14729da/SQLAlchemy-Utils-0.41.2.tar.gz", hash = "sha256:bc599c8c3b3319e53ce6c5c3c471120bd325d0071fb6f38a10e924e3d07b9990", size = 138017, upload-time = "2024-03-24T15:17:28.196Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d5/f0/dc4757b83ac1ab853cf222df8535ed73973e0c203d983982ba7b8bc60508/SQLAlchemy_Utils-0.41.2-py3-none-any.whl", hash = "sha256:85cf3842da2bf060760f955f8467b87983fb2e30f1764fd0e24a48307dc8ec6e", size = 93083, upload-time = "2024-03-24T15:17:24.533Z" },
+]
+
+[[package]]
+name = "sqlparse"
+version = "0.5.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/90/76/437d71068094df0726366574cf3432a4ed754217b436eb7429415cf2d480/sqlparse-0.5.5.tar.gz", hash = "sha256:e20d4a9b0b8585fdf63b10d30066c7c94c5d7a7ec47c889a2d83a3caa93ff28e", size = 120815, upload-time = "2025-12-19T07:17:45.073Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/49/4b/359f28a903c13438ef59ebeee215fb25da53066db67b305c125f1c6d2a25/sqlparse-0.5.5-py3-none-any.whl", hash = "sha256:12a08b3bf3eec877c519589833aed092e2444e68240a3577e8e26148acc7b1ba", size = 46138, upload-time = "2025-12-19T07:17:46.573Z" },
 ]
 
 [[package]]
@@ -3879,6 +3999,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/3e/e3/2d139d3a1eb3ab912245bba69edd1a9df3b21de86fc58c97c1bc53bf68ad/taskflow-5.12.0.tar.gz", hash = "sha256:52a72bfe4be0162d547b644cefeca6773f701fb159606ef982ac47cf5155d188", size = 1089692, upload-time = "2025-03-10T13:06:46.435Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7a/f9/874f7a36cf3905a0ecba9558fed85beb54151f2fa44c1241289c6ab8eff4/taskflow-5.12.0-py3-none-any.whl", hash = "sha256:3ee6e3d94120690119c5ab181d4ef784fc5c8b364b7a5311023615b011aa71eb", size = 504387, upload-time = "2025-03-10T13:06:44.592Z" },
+]
+
+[[package]]
+name = "tempita"
+version = "0.6.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/74/d5/ad8a832e120cb9b743f175b80368b457a1078cd65bd9b8578aca5ddb1bd2/tempita-0.6.0.tar.gz", hash = "sha256:76e15de0137e5011c22949cc15a5161f623fe6a31655751c6d765db6bbac27b6", size = 19205, upload-time = "2024-11-12T21:55:45.424Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/23/05/346f980c4e643f04ec3630c20d8169ffbea5137f6dcf7619d7349f7f9401/Tempita-0.6.0-py3-none-any.whl", hash = "sha256:696160ba5302b344934558d9d4c94a7b9778b7641612f4e20d62fcac4d7a02c9", size = 13752, upload-time = "2024-11-12T21:55:43.827Z" },
 ]
 
 [[package]]
@@ -4031,25 +4160,8 @@ wheels = [
 
 [[package]]
 name = "urllib3"
-version = "1.26.20"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version < '3.10'",
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e4/e8/6ff5e6bc22095cfc59b6ea711b687e2b7ed4bdb373f7eeec370a97d7392f/urllib3-1.26.20.tar.gz", hash = "sha256:40c2dc0c681e47eb8f90e7e27bf6ff7df2e677421fd46756da1161c39ca70d32", size = 307380, upload-time = "2024-08-29T15:43:11.37Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/33/cf/8435d5a7159e2a9c83a95896ed596f68cf798005fe107cc655b5c5c14704/urllib3-1.26.20-py2.py3-none-any.whl", hash = "sha256:0ed14ccfbf1c30a9072c7ca157e4319b70d65f623e91e7b32fadb2853431016e", size = 144225, upload-time = "2024-08-29T15:43:08.921Z" },
-]
-
-[[package]]
-name = "urllib3"
 version = "2.6.3"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.13'",
-    "python_full_version == '3.12.*'",
-    "python_full_version >= '3.10' and python_full_version < '3.12'",
-]
 sdist = { url = "https://files.pythonhosted.org/packages/c7/24/5f1b3bdffd70275f6661c76461e25f024d5a38a46f04aaca912426a2b1d3/urllib3-2.6.3.tar.gz", hash = "sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed", size = 435556, upload-time = "2026-01-07T16:24:43.925Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/39/08/aaaad47bc4e9dc8c725e68f9d04865dbcb2052843ff09c97b08904852d84/urllib3-2.6.3-py3-none-any.whl", hash = "sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4", size = 131584, upload-time = "2026-01-07T16:24:42.685Z" },
