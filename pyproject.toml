@@ -37,7 +37,7 @@ generate = [
 
 [dependency-groups]
 dev = [
-  "pytest>=8,<9", "requests-mock", "fixtures", "httpretty"
+  "pytest>=8,<10", "requests-mock", "fixtures", "httpretty"
 ]
 
 [build-system]
